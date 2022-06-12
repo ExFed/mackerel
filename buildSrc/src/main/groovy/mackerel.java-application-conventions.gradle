@@ -1,0 +1,4 @@
+plugins {
+    id 'mackerel.java-common-conventions'
+    id 'application'
+}

@@ -1,0 +1,13 @@
+plugins {
+    id 'mackerel.java-application-conventions'
+}
+
+application {
+    mainClass = 'mackerel.tool.GenerateAst'
+}
+
+task generate(type: JavaExec) {
+    args rootProject.file('lang/src/gen/java')
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'mackerel.tool.GenerateAst'
+}

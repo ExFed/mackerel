@@ -1,0 +1,20 @@
+plugins {
+    id 'java'
+    id 'io.freefair.lombok'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    constraints {
+        // Define dependency versions as constraints
+    }
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
