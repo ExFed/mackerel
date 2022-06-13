@@ -13,3 +13,5 @@ application {
 tasks.named('compileJava') {
     dependsOn ':grammar-tool:generate'
 }
+
+sourceSets.main.java.srcDir 'src/gen/java'
