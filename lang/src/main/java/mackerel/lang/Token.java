@@ -4,7 +4,7 @@ import lombok.NonNull;
 import lombok.Value;
 
 @Value
-class Token {
+final class Token {
     @NonNull Type type;
     @NonNull String lexeme;
     Object literal;
@@ -36,13 +36,21 @@ class Token {
         GREATER_EQUAL,
         LESS,
         LESS_EQUAL,
+        DASH_ARROW,
+        EQUAL_ARROW,
 
         // literals
-        IDENTIFIER, STRING, NUMBER,
+        IDENTIFIER,
+        STRING,
+        NUMBER,
 
         // keywords
-        AND, CLASS, ELSE, FUN, FOR, IF, NIL, OR, PRINT, RETURN, SUPER, THIS, TRUE, FALSE, VAR, WHILE,
+        DECL,
+        THIS,
+        TRUE,
+        FALSE,
 
+        // end-of-file
         EOF;
     }
 }
