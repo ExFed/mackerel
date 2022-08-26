@@ -70,21 +70,19 @@ public class Mackerel {
         var scanner = new Scanner(source);
         var tokens = scanner.scanTokens();
 
-        for (var token : tokens) {
-            System.out.println(token);
-        }
+        var parser = new Parser(tokens);
+        var parsed = parser.parse();
 
-        // var parser = new Parser(tokens);
-        // var parsed = parser.parse();
+        parsed.forEach(System.out::println);
 
         if (scanner.hasErrors()) {
             scanner.getErrors().forEach(Mackerel::report);
             return 1;
         }
 
-        // if (parser.hasError()) {
-        //     return 65;
-        // }
+        if (parser.hasErrors()) {
+            parser.getErrors().forEach(Mackerel::report);
+        }
 
         // if (interpreter.hadError()) {
         //     return 70;
@@ -94,6 +92,10 @@ public class Mackerel {
     }
 
     private static void report(Scanner.Error error) {
-        System.err.println(error.message() + " [line " + error.line() + "]");
+        System.err.println("scanner: " + error.message() + " [line " + error.line() + "]");
+    }
+
+    private static void report(Parser.Error error) {
+        System.err.println("parser: " + error);
     }
 }

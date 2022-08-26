@@ -19,7 +19,6 @@ final class Scanner {
 
     private static final Map<String, Token.Type> keywords = Map.ofEntries(
         entry("decl", DECL),
-        entry("this", THIS),
         entry("true", TRUE),
         entry("false", FALSE));
 
@@ -41,7 +40,7 @@ final class Scanner {
             scanToken();
         }
 
-        tokens.add(new Token(EOF, "", null, line));
+        tokens.add(new Token(EOF, "", line));
         return tokens;
     }
 
@@ -52,6 +51,20 @@ final class Scanner {
     private void scanToken() {
         var c = advance();
         switch (c) {
+        case '&':
+            if (match('&')) {
+                addToken(AMPERSAND_AMPERSAND);
+            } else {
+                addToken(AMPERSAND);
+            }
+            break;
+        case '|':
+            if (match('|')) {
+                addToken(PIPE_PIPE);
+            } else {
+                addToken(PIPE);
+            }
+            break;
         case '(':
             addToken(PAREN_LEFT);
             break;
@@ -117,6 +130,9 @@ final class Scanner {
                 addToken(SLASH);
             }
             break;
+        case '~':
+            addToken(TILDE);
+            break;
 
         // whitespace
         case ' ':
@@ -125,6 +141,7 @@ final class Scanner {
             break;
 
         case '\n':
+            addToken(EOL);
             line++;
             break;
 
@@ -181,7 +198,7 @@ final class Scanner {
             }
         }
 
-        addToken(NUMBER, Double.parseDouble(source.substring(start, current)));
+        addToken(NUMBER);
     }
 
     private void string() {
@@ -222,7 +239,7 @@ final class Scanner {
             return;
         }
         advance();
-        addToken(STRING, value.toString());
+        addToken(STRING);
     }
 
     private void blockComment() {
@@ -276,12 +293,8 @@ final class Scanner {
     }
 
     private void addToken(Token.Type type) {
-        addToken(type, null);
-    }
-
-    private void addToken(Token.Type type, Object literal) {
         var text = source.substring(start, current);
-        tokens.add(new Token(type, text, literal, line));
+        tokens.add(new Token(type, text, line));
     }
 
     private void error(int line, String msg) {

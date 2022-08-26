@@ -1,54 +1,56 @@
 package mackerel.lang;
 
 import lombok.NonNull;
-import lombok.Value;
 
-@Value
-final class Token {
-    @NonNull Type type;
-    @NonNull String lexeme;
-    Object literal;
-    int line;
+record Token(@NonNull Type type, @NonNull String lexeme, int line) {
 
+    @Override
     public String toString() {
-        return type + " " + lexeme + " " + literal;
+        return type + " " + lexeme + " " + line;
     }
 
     enum Type {
-        PAREN_LEFT,
-        PAREN_RIGHT,
+        AMPERSAND,
+        AMPERSAND_AMPERSAND,
+        PIPE,
+        PIPE_PIPE,
+        BANG_EQUAL,
+        BANG,
         BRACE_LEFT,
         BRACE_RIGHT,
+        COLON,
         COMMA,
+        DASH_ARROW,
         DOT,
+        EQUAL_ARROW,
+        EQUAL_EQUAL,
+        EQUAL,
+        GREATER_EQUAL,
+        GREATER,
+        LESS_EQUAL,
+        LESS,
         MINUS,
+        PAREN_LEFT,
+        PAREN_RIGHT,
         PLUS,
         QUESTION,
-        COLON,
         SEMICOLON,
         SLASH,
         STAR,
-        BANG,
-        BANG_EQUAL,
-        EQUAL,
-        EQUAL_EQUAL,
-        GREATER,
-        GREATER_EQUAL,
-        LESS,
-        LESS_EQUAL,
-        DASH_ARROW,
-        EQUAL_ARROW,
+        TILDE,
 
         // literals
         IDENTIFIER,
-        STRING,
         NUMBER,
+        STRING,
 
         // keywords
         DECL,
-        THIS,
         TRUE,
         FALSE,
+
+        // end-of-line
+        EOL,
 
         // end-of-file
         EOF;

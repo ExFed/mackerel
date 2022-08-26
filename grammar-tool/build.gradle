@@ -7,7 +7,9 @@ application {
 }
 
 task generate(type: JavaExec) {
-    args rootProject.file('lang/src/gen/java')
+    ext.gendir = rootProject.file('lang/src/gen/java')
+    args gendir
+    outputs.dir gendir
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'mackerel.tool.GenerateAst'
 }

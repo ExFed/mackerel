@@ -4,10 +4,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -18,26 +19,32 @@ public class GenerateAst {
             System.exit(64);
         }
         var outputDir = args[0];
+
+        // clean the output dir
+        Files.walk(Path.of(outputDir))
+            .sorted(Comparator.reverseOrder())
+            .map(Path::toFile)
+            .forEach(File::delete);
+
         var exprAst = parseAstDef(
+            "Bag        : List>Expr values",
             "Binary     : Expr left, Token operator, Expr right",
             "Binding    : Token name, Expr value",
-            "Call       : Expr callee, Token paren, List<Expr> arguments",
             "Get        : Expr object, Token name",
+            "Grouping   : Expr expression",
             "Lambda     : Token param, Token arrow, Expr body",
             "Literal    : Object value",
             "Logical    : Expr left, Token operator, Expr right",
-            "Print      : Expr expression",
-            "Set        : Expr object, Token name, Expr value",
-            "Ternary    : Expr left, Token leftOp, Expr middle, Token rightOp, Expr right",
+            "Symbol     : Token name",
             "Unary      : Token operator, Expr right",
             "Variable   : Token name"
         );
         writeAstDef(outputDir, "mackerel.lang.Expr", exprAst);
 
-        var stmtAst = parseAstDef(
-            "Decl        : Token name, Expr initializer"
+        var declAst = parseAstDef(
+            "Definition : Token name, Expr definition"
         );
-        writeAstDef(outputDir, "mackerel.lang.Stmt", stmtAst);
+        writeAstDef(outputDir, "mackerel.lang.Decl", declAst);
     }
 
     private static record NodeType(String name, NodeField[] fields) {};
@@ -58,6 +65,13 @@ public class GenerateAst {
             var toks = field.trim().split(" ");
             var name = toks[1].trim();
             var type = toks[0].trim();
+            var genericType = type.split(">");
+            if (genericType.length > 1) {
+                var params = Arrays.stream(genericType)
+                        .skip(1)
+                        .collect(Collectors.joining(", "));
+                type = genericType[0] + "<" + params + ">";
+            }
             return new NodeField(name, type);
         });
         return entries.toArray(NodeField[]::new);
@@ -90,7 +104,7 @@ public class GenerateAst {
             String baseName,
             NodeType[] astDef) {
 
-        writer.println("import java.util.List;");
+        writer.println("import java.util.*;");
         writer.println();
         writer.println("sealed interface " + baseName + " {");
 
@@ -117,23 +131,6 @@ public class GenerateAst {
 
         writer.println("}");
     }
-
-    // private static void writeTypeRecord(PrintWriter writer, String baseName, String className, Map<String, String> fields) {
-
-    //     var fieldList = fields.entrySet()
-    //     .stream()
-    //     .map(e -> e.getValue() + ' ' + e.getKey())
-    //     .collect(Collectors.joining(", "));
-    //     writer.println("  record " + className  + "(" + fieldList + ") implements " + baseName + " {");
-
-    //     // visitor pattern
-    //     writer.println();
-    //     writer.println("    public <R> R accept(Visitor<R> visitor) {");
-    //     writer.println("      return visitor.visit" + className + baseName + "(this);");
-    //     writer.println("    }");
-
-    //     writer.println("  }");
-    // }
 
     private static void writeTypeRecord(PrintWriter writer, String baseName, String className, NodeField[] fields) {
 
