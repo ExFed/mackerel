@@ -27,9 +27,10 @@ public class GenerateAst {
             .forEach(File::delete);
 
         var exprAst = parseAstDef(
-            "Bag        : List>Expr values",
+            "Association: List>Binding bindings",
             "Binary     : Expr left, Token operator, Expr right",
             "Binding    : Token name, Expr value",
+            "Collection : List>Expr elements",
             "Get        : Expr object, Token name",
             "Grouping   : Expr expression",
             "Lambda     : Token param, Token arrow, Expr body",

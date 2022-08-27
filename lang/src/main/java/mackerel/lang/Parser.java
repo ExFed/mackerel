@@ -41,13 +41,34 @@ final class Parser {
 
     //// grammar rules ////
 
-    private Expr bag() {
-        var values = new ArrayList<Expr>();
-        while (!check(BRACE_RIGHT)) {
-            values.add(expression());
+    private Expr association() {
+        var bindings = new ArrayList<Expr.Binding>();
+
+        // empty association?
+        if (!match(COLON)) {
+            while (!check(BRACE_RIGHT)) {
+                var name = consume(IDENTIFIER, "Expect identifier.");
+                consume(COLON, "Expect ':' after binding name.");
+                var expr = expression();
+                bindings.add(new Expr.Binding(name, expr));
+            }
         }
-        consume(BRACE_RIGHT, "Expect '}' to close bag.");
-        return new Expr.Bag(values);
+
+        consume(BRACE_RIGHT, "Expect '}' after bindings.");
+        return new Expr.Association(bindings);
+    }
+
+    private Expr collection() {
+        if (check(IDENTIFIER) && checkNext(COLON) || check(COLON)) {
+            return association();
+        }
+
+        var elements = new ArrayList<Expr>();
+        while (!check(BRACE_RIGHT)) {
+            elements.add(expression());
+        }
+        consume(BRACE_RIGHT, "Expect '}' after elements.");
+        return new Expr.Collection(elements);
     }
 
     private Expr primary() {
@@ -65,8 +86,7 @@ final class Parser {
             return new Expr.Literal(value);
         }
         if (match(IDENTIFIER)) {
-            var name = previous();
-            return match(COLON) ? new Expr.Binding(name, expression()) : new Expr.Variable(name);
+            return new Expr.Variable(previous());
         }
         if (match(PAREN_LEFT)) {
             var expr = expression();
@@ -74,7 +94,7 @@ final class Parser {
             return new Expr.Grouping(expr);
         }
         if (match(BRACE_LEFT)) {
-            return bag();
+            return collection();
         }
         if (match(COLON)) {
             var name = consume(IDENTIFIER, "Expect symbol identifier");
@@ -86,6 +106,7 @@ final class Parser {
 
     private Expr unary() {
         if (check(IDENTIFIER) && checkNext(PAREN_LEFT, BRACE_LEFT, NUMBER, STRING, IDENTIFIER)) {
+            // TODO doesn't really work when given `foo 10 bar`
             var operator = advance();
             var right = unary();
             return new Expr.Unary(operator, right);
