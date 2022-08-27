@@ -151,7 +151,7 @@ final class Scanner {
 
         default:
             if (isDigit(c)) {
-                number();
+                integer();
             } else if (isAlpha(c)) {
                 identifier();
             } else {
@@ -183,7 +183,7 @@ final class Scanner {
         addToken(type);
     }
 
-    private void number() {
+    private void integer() {
         while (isDigit(peek())) {
             advance();
         }
@@ -196,9 +196,10 @@ final class Scanner {
             while (isDigit(peek())) {
                 advance();
             }
+            addToken(DECIMAL);
+        } else {
+            addToken(INTEGER);
         }
-
-        addToken(NUMBER);
     }
 
     private void string() {

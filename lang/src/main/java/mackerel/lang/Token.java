@@ -40,8 +40,9 @@ record Token(@NonNull Type type, @NonNull String lexeme, int line) {
         TILDE,
 
         // literals
+        DECIMAL,
         IDENTIFIER,
-        NUMBER,
+        INTEGER,
         STRING,
 
         // keywords

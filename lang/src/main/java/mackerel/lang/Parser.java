@@ -3,6 +3,7 @@ package mackerel.lang;
 import static mackerel.lang.Token.Type.*;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,15 +25,12 @@ final class Parser {
 
     private int current = 0;
 
-    public List<Decl> parse() {
-        var declarations = new ArrayList<Decl>();
+    public List<Stmt> parse() {
+        var statements = new ArrayList<Stmt>();
         while (!isAtEnd()) {
-            var declaration = declaration();
-            if (null != declaration) {
-                declarations.add(declaration);
-            }
+            statements.add(statement());
         }
-        return declarations;
+        return statements;
     }
 
     public boolean hasErrors() {
@@ -81,8 +79,12 @@ final class Parser {
         if (match(STRING)) {
             return new Expr.Literal(previous().lexeme());
         }
-        if (match(NUMBER)) {
+        if (match(DECIMAL)) {
             var value = new BigDecimal(previous().lexeme());
+            return new Expr.Literal(value);
+        }
+        if (match(INTEGER)) {
+            var value = new BigInteger(previous().lexeme());
             return new Expr.Literal(value);
         }
         if (match(IDENTIFIER)) {
@@ -96,22 +98,10 @@ final class Parser {
         if (match(BRACE_LEFT)) {
             return collection();
         }
-        if (match(COLON)) {
-            var name = consume(IDENTIFIER, "Expect symbol identifier");
-            return new Expr.Symbol(name);
-        }
-
         throw error(peek(), "Expect expression.");
     }
 
     private Expr unary() {
-        if (check(IDENTIFIER) && checkNext(PAREN_LEFT, BRACE_LEFT, NUMBER, STRING, IDENTIFIER)) {
-            // TODO doesn't really work when given `foo 10 bar`
-            var operator = advance();
-            var right = unary();
-            return new Expr.Unary(operator, right);
-        }
-
         if (match(BANG, MINUS, PLUS, TILDE)) {
             var operator = previous();
             var right = unary();
@@ -197,16 +187,16 @@ final class Parser {
         return or();
     }
 
-    private Decl decl() {
+    private Stmt declaration() {
         var name = consume(IDENTIFIER, "Expect declaration name.");
         consume(COLON, "Expect colon after declaration name.");
-        return new Decl.Definition(name, expression());
+        return new Stmt.Declaration(name, expression());
     }
 
-    private Decl declaration() {
+    private Stmt statement() {
         try {
             consume(DECL, "Expect declaration.");
-            return decl();
+            return declaration();
         } catch (ParseError ex) {
             synchronize();
             return null;

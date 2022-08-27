@@ -36,16 +36,15 @@ public class GenerateAst {
             "Lambda     : Token param, Token arrow, Expr body",
             "Literal    : Object value",
             "Logical    : Expr left, Token operator, Expr right",
-            "Symbol     : Token name",
             "Unary      : Token operator, Expr right",
             "Variable   : Token name"
         );
         writeAstDef(outputDir, "mackerel.lang.Expr", exprAst);
 
-        var declAst = parseAstDef(
-            "Definition : Token name, Expr definition"
+        var stmtAst = parseAstDef(
+            "Declaration: Token name, Expr definition"
         );
-        writeAstDef(outputDir, "mackerel.lang.Decl", declAst);
+        writeAstDef(outputDir, "mackerel.lang.Stmt", stmtAst);
     }
 
     private static record NodeType(String name, NodeField[] fields) {};
