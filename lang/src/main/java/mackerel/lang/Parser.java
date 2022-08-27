@@ -193,10 +193,20 @@ final class Parser {
         return new Stmt.Declaration(name, expression());
     }
 
+    private Stmt expressionStatement() {
+        var expression = expression();
+        if (!isAtEnd()) {
+            consume(EOL, "Expect EOL after expression.");
+        }
+        return new Stmt.Expression(expression);
+    }
+
     private Stmt statement() {
         try {
-            consume(DECL, "Expect declaration.");
-            return declaration();
+            if (match(DECL)) {
+                return declaration();
+            }
+            return expressionStatement();
         } catch (ParseError ex) {
             synchronize();
             return null;
@@ -206,8 +216,9 @@ final class Parser {
     //// utility methods ////
 
     private Token consume(Token.Type type, String message) {
-        if (check(type))
+        if (check(type)) {
             return advance();
+        }
 
         throw error(peek(), message);
     }

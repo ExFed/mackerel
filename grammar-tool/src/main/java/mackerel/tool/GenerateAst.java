@@ -42,7 +42,8 @@ public class GenerateAst {
         writeAstDef(outputDir, "mackerel.lang.Expr", exprAst);
 
         var stmtAst = parseAstDef(
-            "Declaration: Token name, Expr definition"
+            "Declaration: Token name, Expr definition",
+            "Expression: Expr expression"
         );
         writeAstDef(outputDir, "mackerel.lang.Stmt", stmtAst);
     }
