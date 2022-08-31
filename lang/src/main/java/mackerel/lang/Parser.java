@@ -77,7 +77,9 @@ final class Parser {
             return new Expr.Literal(true);
         }
         if (match(STRING)) {
-            return new Expr.Literal(previous().lexeme());
+            var lexeme = previous().lexeme();
+            var string = lexeme.substring(1, lexeme.length() - 1); // strip quotes
+            return new Expr.Literal(string);
         }
         if (match(DECIMAL)) {
             var value = new BigDecimal(previous().lexeme());

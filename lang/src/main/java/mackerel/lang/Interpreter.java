@@ -10,6 +10,7 @@ import java.util.Map;
 import lombok.Getter;
 import lombok.NonNull;
 import mackerel.lang.Expr.Binary;
+import mackerel.lang.Expr.Grouping;
 
 final class Interpreter {
 
@@ -43,15 +44,23 @@ final class Interpreter {
     }
 
     private Object evaluate(Expr expr) {
-        if (expr instanceof Expr.Literal node) {
-            return node.value();
+        if (expr instanceof Expr.Literal literal) {
+            return literal.value();
         }
 
-        if (expr instanceof Expr.Binary node) {
-            return evaluateBinaryExpr(node);
+        if (expr instanceof Expr.Binary binary) {
+            return evaluateBinaryExpr(binary);
         }
 
-        return null;
+        if (expr instanceof Expr.Grouping grouping) {
+            return evaluateGroupingExpr(grouping);
+        }
+
+        return "unsupported expression:\n  " + expr;
+    }
+
+    private Object evaluateGroupingExpr(Grouping grouping) {
+        return evaluate(grouping.expression());
     }
 
     private Object evaluateBinaryExpr(Binary expr) {
@@ -119,7 +128,7 @@ final class Interpreter {
                     return stringify(left) + stringify(right);
                 }
 
-                throw new RuntimeErrorException(op, "No operation applicable for operands.");
+                throw new RuntimeErrorException(op, "No operation applicable for operands: " + left + " " + op.lexeme() + " " + right);
 
             default:
                 throw new UnsupportedOperationException("unsupported operation: " + op);

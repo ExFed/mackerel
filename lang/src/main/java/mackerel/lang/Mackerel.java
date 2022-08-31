@@ -86,6 +86,7 @@ public class Mackerel {
 
         if (interpreter.hasErrors()) {
             interpreter.getErrors().forEach(Mackerel::report);
+            interpreter.getErrors().clear();
             return 1;
         }
 
