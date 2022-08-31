@@ -27,8 +27,7 @@ public class Mackerel {
         System.exit(exitCode);
     }
 
-    // private static final Parser parser = new Parser();
-    // private static final Interpreter interpreter = new Interpreter();
+    private static final Interpreter interpreter = new Interpreter();
 
     private static int runFile(String path) throws IOException {
         byte[] bytes;
@@ -70,23 +69,25 @@ public class Mackerel {
         var scanner = new Scanner(source);
         var tokens = scanner.scanTokens();
 
-        var parser = new Parser(tokens);
-        var parsed = parser.parse();
-
-        parsed.forEach(System.out::println);
-
         if (scanner.hasErrors()) {
             scanner.getErrors().forEach(Mackerel::report);
             return 1;
         }
 
+        var parser = new Parser(tokens);
+        var parsed = parser.parse();
+
         if (parser.hasErrors()) {
             parser.getErrors().forEach(Mackerel::report);
+            return 1;
         }
 
-        // if (interpreter.hadError()) {
-        //     return 70;
-        // }
+        interpreter.interpret(parsed);
+
+        if (interpreter.hasErrors()) {
+            interpreter.getErrors().forEach(Mackerel::report);
+            return 1;
+        }
 
         return 0;
     }
@@ -97,5 +98,11 @@ public class Mackerel {
 
     private static void report(Parser.Error error) {
         System.err.println("parser: " + error);
+    }
+
+
+    private static void report(RuntimeErrorException error) {
+        System.err.println("runtime: " + error.getMessage());
+        System.err.println("         " + error.getToken());
     }
 }
