@@ -39,36 +39,6 @@ final class Parser {
 
     //// grammar rules ////
 
-    private Expr association() {
-        var bindings = new ArrayList<Expr.Binding>();
-
-        // empty association?
-        if (!match(COLON)) {
-            while (!check(BRACE_RIGHT)) {
-                var name = consume(IDENTIFIER, "Expect identifier.");
-                consume(COLON, "Expect ':' after binding name.");
-                var expr = expression();
-                bindings.add(new Expr.Binding(name, expr));
-            }
-        }
-
-        consume(BRACE_RIGHT, "Expect '}' after bindings.");
-        return new Expr.Association(bindings);
-    }
-
-    private Expr collection() {
-        if (check(IDENTIFIER) && checkNext(COLON) || check(COLON)) {
-            return association();
-        }
-
-        var elements = new ArrayList<Expr>();
-        while (!check(BRACE_RIGHT)) {
-            elements.add(expression());
-        }
-        consume(BRACE_RIGHT, "Expect '}' after elements.");
-        return new Expr.Collection(elements);
-    }
-
     private Expr primary() {
         if (match(FALSE)) {
             return new Expr.Literal(false);
@@ -90,17 +60,33 @@ final class Parser {
             return new Expr.Literal(value);
         }
         if (match(IDENTIFIER)) {
-            return new Expr.Variable(previous());
+            var identifier = previous();
+            if (match(BRACE_LEFT)) {
+                var statements = new ArrayList<Stmt>();
+                while (!check(BRACE_RIGHT) && !isAtEnd()) {
+                    statements.add(statement());
+                }
+                consume(BRACE_RIGHT, "Expect '}' after block.");
+                return new Expr.Builder(identifier, statements);
+            }
+            return new Expr.Variable(identifier);
         }
         if (match(PAREN_LEFT)) {
             var expr = expression();
             consume(PAREN_RIGHT, "Expect ')' after expression.");
             return new Expr.Grouping(expr);
         }
-        if (match(BRACE_LEFT)) {
-            return collection();
-        }
         throw error(peek(), "Expect expression.");
+    }
+
+    private Expr binding() {
+        var left = primary();
+        if (check(COLON)) {
+            advance();
+            var right = expression();
+            return new Expr.Binding(left, right);
+        }
+        return left;
     }
 
     private Expr unary() {
@@ -109,8 +95,7 @@ final class Parser {
             var right = unary();
             return new Expr.Unary(operator, right);
         }
-
-        return primary();
+        return binding();
     }
 
     private Expr factor() {
@@ -190,29 +175,34 @@ final class Parser {
     }
 
     private Stmt declaration() {
-        var name = consume(IDENTIFIER, "Expect declaration name.");
-        consume(COLON, "Expect colon after declaration name.");
-        return new Stmt.Declaration(name, expression());
+        var type = advance();
+        var definition = expression();
+        ignoreEOL();
+        return new Stmt.Declaration(type, definition);
     }
 
     private Stmt expressionStatement() {
         var expression = expression();
-        if (!isAtEnd()) {
-            consume(EOL, "Expect EOL after expression.");
+        if (!isAtEnd() && !check(BRACE_RIGHT)) {
+            consume(EOL, "Expect ';' or newline after expression.");
         }
         return new Stmt.Expression(expression);
     }
 
     private Stmt statement() {
+        Stmt stmt;
         try {
-            if (match(DECL)) {
-                return declaration();
+            if (check(DECL)) {
+                stmt = declaration();
+            } else {
+                stmt = expressionStatement();
             }
-            return expressionStatement();
         } catch (ParseError ex) {
             synchronize();
             return null;
         }
+        ignoreEOL();
+        return stmt;
     }
 
     //// utility methods ////
@@ -232,10 +222,7 @@ final class Parser {
 
     private void synchronize() {
         advance();
-
-        while (!isAtEnd() && EOL != peek().type()) {
-            advance();
-        }
+        ignoreEOL();
     }
 
     private boolean match(Token.Type... types) {

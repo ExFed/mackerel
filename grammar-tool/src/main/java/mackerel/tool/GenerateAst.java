@@ -27,13 +27,10 @@ public class GenerateAst {
             .forEach(File::delete);
 
         var exprAst = parseAstDef(
-            "Association: List>Binding bindings",
             "Binary     : Expr left, Token operator, Expr right",
-            "Binding    : Token name, Expr value",
-            "Collection : List>Expr elements",
-            "Get        : Expr object, Token name",
+            "Binding    : Expr left, Expr right",
+            "Builder    : Token type, List>Stmt statements",
             "Grouping   : Expr expression",
-            "Lambda     : Token param, Token arrow, Expr body",
             "Literal    : Object value",
             "Logical    : Expr left, Token operator, Expr right",
             "Unary      : Token operator, Expr right",
@@ -42,7 +39,7 @@ public class GenerateAst {
         writeAstDef(outputDir, "mackerel.lang.Expr", exprAst);
 
         var stmtAst = parseAstDef(
-            "Declaration: Token name, Expr definition",
+            "Declaration: Token type, Expr definition",
             "Expression: Expr expression"
         );
         writeAstDef(outputDir, "mackerel.lang.Stmt", stmtAst);

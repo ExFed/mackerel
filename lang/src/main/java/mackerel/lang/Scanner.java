@@ -95,9 +95,6 @@ final class Scanner {
         case ':':
             addToken(COLON);
             break;
-        case ';':
-            addToken(SEMICOLON);
-            break;
         case '*':
             addToken(STAR);
             break;
@@ -141,8 +138,11 @@ final class Scanner {
             break;
 
         case '\n':
-            addToken(EOL);
             line++;
+            addToken(EOL);
+            break;
+        case ';':
+            addToken(EOL);
             break;
 
         case '"':

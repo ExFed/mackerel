@@ -34,7 +34,6 @@ record Token(@NonNull Type type, @NonNull String lexeme, int line) {
         PAREN_RIGHT,
         PLUS,
         QUESTION,
-        SEMICOLON,
         SLASH,
         STAR,
         TILDE,

@@ -98,12 +98,11 @@ public class Mackerel {
     }
 
     private static void report(Parser.Error error) {
-        System.err.println("parser: " + error);
+        System.err.println("parser: " + error.message() + " [line " + error.token().line() + "]");
     }
 
 
-    private static void report(RuntimeErrorException error) {
-        System.err.println("runtime: " + error.getMessage());
-        System.err.println("         " + error.getToken());
+    private static void report(Interpreter.Error error) {
+        System.err.println("interpreter: " + error.message() + " [line " + error.token().line() + "]");
     }
 }

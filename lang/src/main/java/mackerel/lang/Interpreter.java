@@ -10,14 +10,23 @@ import java.util.Map;
 import lombok.Getter;
 import lombok.NonNull;
 import mackerel.lang.Expr.Binary;
+import mackerel.lang.Expr.Binding;
+import mackerel.lang.Expr.Builder;
 import mackerel.lang.Expr.Grouping;
+import mackerel.lang.Expr.Logical;
+import mackerel.lang.Expr.Unary;
+import mackerel.lang.Expr.Variable;
+import mackerel.lang.Stmt.Declaration;
+import mackerel.lang.Token.Type;
 
 final class Interpreter {
 
-    @Getter
-    private final List<RuntimeErrorException> errors = new ArrayList<>();
+    public record Error(String message, Token token) {}
 
-    private final Map<String, Expr> declarations = new LinkedHashMap<>();
+    @Getter
+    private final List<Error> errors = new ArrayList<>();
+
+    private final Map<String, Lazy<Object>> declarations = new LinkedHashMap<>();
 
     public boolean hasErrors() {
         return !errors.isEmpty();
@@ -28,39 +37,66 @@ final class Interpreter {
             for (var statement : statements) {
                 execute(statement);
             }
-        } catch (RuntimeErrorException ex) {
-            errors.add(ex);
+        } catch (InterpreterError ex) {
+            errors.add(ex.asError());
         }
     }
 
     private void execute(Stmt statement) {
         if (statement instanceof Stmt.Expression expr) {
             System.out.println(evaluate(expr.expression()));
-        } else if(statement instanceof Stmt.Declaration decl) {
-            System.out.println("declaration: " + decl.name() + " : " + decl.definition());
+        } else if (statement instanceof Stmt.Declaration decl) {
+            executeDeclarationStmt(decl);
         } else {
             throw new IllegalArgumentException("unsupported statement: " + statement);
         }
     }
 
-    private Object evaluate(Expr expr) {
-        if (expr instanceof Expr.Literal literal) {
-            return literal.value();
+    private void executeDeclarationStmt(Declaration decl) {
+        if ("decl".equals(decl.type().lexeme())) {
+            if (decl.definition() instanceof Expr.Binding binding && binding.left() instanceof Expr.Variable key) {
+                var definition = binding.right();
+                declarations.put(key.name().lexeme(), Lazy.lazy(() -> evaluate(definition)));
+            } else {
+                throw new InterpreterError(decl.type(), "Expect named binding.");
+            }
         }
+    }
 
+    private Object evaluate(Expr expr) {
         if (expr instanceof Expr.Binary binary) {
             return evaluateBinaryExpr(binary);
+        }
+
+        if (expr instanceof Expr.Binding binding) {
+            return evaluateBindingExpr(binding);
+        }
+
+        if (expr instanceof Expr.Builder builder) {
+            return evaluateBuilderExpr(builder);
         }
 
         if (expr instanceof Expr.Grouping grouping) {
             return evaluateGroupingExpr(grouping);
         }
 
-        return "unsupported expression:\n  " + expr;
-    }
+        if (expr instanceof Expr.Literal literal) {
+            return literal.value();
+        }
 
-    private Object evaluateGroupingExpr(Grouping grouping) {
-        return evaluate(grouping.expression());
+        if (expr instanceof Expr.Logical logical) {
+            return evaluateLogicalExpr(logical);
+        }
+
+        if (expr instanceof Expr.Unary unary) {
+            return evaluateUnaryExpr(unary);
+        }
+
+        if (expr instanceof Expr.Variable variable) {
+            return evaluateVariableExpr(variable);
+        }
+
+        return "TODO: unsupported expression:\n  " + expr;
     }
 
     private Object evaluateBinaryExpr(Binary expr) {
@@ -70,25 +106,25 @@ final class Interpreter {
 
         switch (op.type()) {
             case GREATER:
-                if (checkNumberOperands(op, left, right)) {
+                if (hasDecimalOperand(op, left, right)) {
                     return asDecimal(left).compareTo(asDecimal(right)) > 0;
                 } else {
                     return asInteger(left).compareTo(asInteger(right)) > 0;
                 }
             case GREATER_EQUAL:
-                if (checkNumberOperands(op, left, right)) {
+                if (hasDecimalOperand(op, left, right)) {
                     return asDecimal(left).compareTo(asDecimal(right)) >= 0;
                 } else {
                     return asInteger(left).compareTo(asInteger(right)) >= 0;
                 }
             case LESS:
-                if (checkNumberOperands(op, left, right)) {
+                if (hasDecimalOperand(op, left, right)) {
                     return asDecimal(left).compareTo(asDecimal(right)) < 0;
                 } else {
                     return asInteger(left).compareTo(asInteger(right)) < 0;
                 }
             case LESS_EQUAL:
-                if (checkNumberOperands(op, left, right)) {
+                if (hasDecimalOperand(op, left, right)) {
                     return asDecimal(left).compareTo(asDecimal(right)) <= 0;
                 } else {
                     return asInteger(left).compareTo(asInteger(right)) <= 0;
@@ -98,26 +134,26 @@ final class Interpreter {
             case EQUAL_EQUAL:
                 return isEqual(left, right);
             case MINUS:
-                if (checkNumberOperands(op, left, right)) {
+                if (hasDecimalOperand(op, left, right)) {
                     return asDecimal(left).subtract(asDecimal(right));
                 } else {
                     return asInteger(left).subtract(asInteger(right));
                 }
             case SLASH:
-                if (checkNumberOperands(op, left, right)) {
+                if (hasDecimalOperand(op, left, right)) {
                     return asDecimal(left).divide(asDecimal(right));
                 } else {
                     return asInteger(left).divide(asInteger(right));
                 }
             case STAR:
-                if (checkNumberOperands(op, left, right)) {
+                if (hasDecimalOperand(op, left, right)) {
                     return asDecimal(left).multiply(asDecimal(right));
                 } else {
                     return asInteger(left).multiply(asInteger(right));
                 }
             case PLUS:
                 if (left instanceof Number && right instanceof Number) {
-                    if (checkNumberOperands(op, left, right)) {
+                    if (hasDecimalOperand(op, left, right)) {
                         return asDecimal(left).add(asDecimal(right));
                     } else {
                         return asInteger(left).add(asInteger(right));
@@ -128,7 +164,7 @@ final class Interpreter {
                     return stringify(left) + stringify(right);
                 }
 
-                throw new RuntimeErrorException(op, "No operation applicable for operands: " + left + " " + op.lexeme() + " " + right);
+                throw new InterpreterError(op, "No operation applicable for operands: " + left + " " + op.lexeme() + " " + right);
 
             default:
                 throw new UnsupportedOperationException("unsupported operation: " + op);
@@ -136,20 +172,98 @@ final class Interpreter {
         }
     }
 
-    private boolean checkNumberOperands(Token operator, Object... operands) {
-        var hasInteger = false;
-        var hasDecimal = false;
+    private Object evaluateBindingExpr(Binding binding) {
+        return Map.entry(evaluate(binding.left()), evaluate(binding.right()));
+    }
+
+    private Object evaluateBuilderExpr(Builder builder) {
+        // TODO
+        return builder.type().lexeme();
+    }
+
+    private Object evaluateGroupingExpr(Grouping grouping) {
+        return evaluate(grouping.expression());
+    }
+
+    private Object evaluateLogicalExpr(Logical logical) {
+        var left = evaluate(logical.left());
+        var operator = logical.operator();
+        if (!(left instanceof Boolean)) {
+            throw new InterpreterError(operator, "Cannot apply logical operator");
+        }
+
+        var isLeftTruthy = (Boolean) left;
+        if (operator.type() == Type.AMPERSAND_AMPERSAND) {
+            if (!isLeftTruthy) {
+                return isLeftTruthy;
+            }
+        } else if(operator.type() == Type.PIPE_PIPE) {
+            if (isLeftTruthy) {
+                return isLeftTruthy;
+            }
+        } else {
+            throw new UnsupportedOperationException("unsupported operation: " + operator);
+        }
+
+        var right = evaluate(logical.right());
+        if (!(right instanceof Boolean)) {
+            throw new InterpreterError(operator, "Cannot apply logical operator");
+        }
+
+        return (Boolean) right;
+    }
+
+    private Object evaluateUnaryExpr(Unary unary) {
+        var op = unary.operator();
+        var value = evaluate(unary.right());
+
+        switch (op.type()) {
+            case BANG:
+                if (!(value instanceof Boolean)) {
+                    var operandClass = value != null ? value.getClass() : null;
+                    throw new InterpreterError(op, "Operand must be a boolean, got " + operandClass);
+                }
+                return !((boolean) value);
+            case MINUS:
+                if (hasDecimalOperand(op, value)) {
+                    return asDecimal(value).negate();
+                } else {
+                    return asInteger(value).negate();
+                }
+            case PLUS:
+                if (hasDecimalOperand(op, value)) {
+                    return asDecimal(value);
+                } else {
+                    return asInteger(value);
+                }
+            default:
+                throw new UnsupportedOperationException("unsupported operation: " + op);
+        }
+    }
+
+    private Object evaluateVariableExpr(Variable variable) {
+        return declarations.get(variable.name().lexeme()).get();
+    }
+
+    // **** UTILITIES ****
+
+    private void checkNumberOperands(Token operator, Object... operands) {
         for (var operand : operands) {
-            if (operand instanceof BigInteger) {
-                hasInteger = true;
-            } else if (operand instanceof BigDecimal) {
-                hasDecimal = true;
-            } else {
+            if (!(operand instanceof BigInteger || operand instanceof BigDecimal)) {
                 var operandClass = operand != null ? operand.getClass() : null;
-                throw new RuntimeErrorException(operator, "Operands must be numbers, got " + operandClass);
+                throw new InterpreterError(operator, "Operand must be a number, got " + operandClass);
             }
         }
-        return hasInteger && hasDecimal;
+    }
+
+    private boolean hasDecimalOperand(Token operator, Object... operands) {
+        checkNumberOperands(operator, operands);
+        for (var operand : operands) {
+            if (operand instanceof BigDecimal) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private BigDecimal asDecimal(Object number) {
@@ -176,18 +290,6 @@ final class Interpreter {
         throw new IllegalArgumentException("Cannot coerce to integer: " + number);
     }
 
-    private boolean isTruthy(Object object) {
-        if (object == null)
-            return false;
-        if (object instanceof BigInteger num)
-            return !BigInteger.ZERO.equals(num);
-        if (object instanceof BigDecimal num)
-            return !BigDecimal.ZERO.equals(num);
-        if (object instanceof Boolean bool)
-            return bool;
-        return true;
-    }
-
     private boolean isEqual(Object a, Object b) {
         if (a == null && b == null)
             return true;
@@ -198,5 +300,18 @@ final class Interpreter {
 
     private String stringify(@NonNull Object obj) {
         return obj.toString();
+    }
+
+    private class InterpreterError extends RuntimeException {
+        private final Token token;
+
+        InterpreterError(Token token, String message) {
+            super(message);
+            this.token = token;
+        }
+
+        public Error asError() {
+            return new Error(getMessage(), token);
+        }
     }
 }
