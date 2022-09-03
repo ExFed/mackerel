@@ -192,7 +192,7 @@ final class Parser {
     private Stmt statement() {
         Stmt stmt;
         try {
-            if (check(DECL)) {
+            if (check(IDENTIFIER) && peekNext().type() != EOF && peekNext().type() != EOL) {
                 stmt = declaration();
             } else {
                 stmt = expressionStatement();

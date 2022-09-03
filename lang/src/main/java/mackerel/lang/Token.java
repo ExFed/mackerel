@@ -45,7 +45,6 @@ record Token(@NonNull Type type, @NonNull String lexeme, int line) {
         STRING,
 
         // keywords
-        DECL,
         TRUE,
         FALSE,
 

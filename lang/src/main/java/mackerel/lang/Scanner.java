@@ -18,7 +18,6 @@ final class Scanner {
     static record Error(int line, String message) {};
 
     private static final Map<String, Token.Type> keywords = Map.ofEntries(
-        entry("decl", DECL),
         entry("true", TRUE),
         entry("false", FALSE));
 
