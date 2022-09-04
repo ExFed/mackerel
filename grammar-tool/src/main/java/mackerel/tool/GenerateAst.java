@@ -28,11 +28,13 @@ public class GenerateAst {
 
         var exprAst = parseAstDef(
             "Binary     : Expr left, Token operator, Expr right",
-            "Binding    : Expr left, Expr right",
+            "Binding    : Expr left, Token operator, Expr right",
             "Builder    : Token type, List>Stmt statements",
             "Grouping   : Expr expression",
             "Literal    : Object value",
             "Logical    : Expr left, Token operator, Expr right",
+            "Sequence   : List>Expr elements",
+            "Table      : List>Binding pairs",
             "Unary      : Token operator, Expr right",
             "Variable   : Token name"
         );

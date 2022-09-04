@@ -10,14 +10,14 @@ record Token(@NonNull Type type, @NonNull String lexeme, int line) {
     }
 
     enum Type {
-        AMPERSAND,
         AMPERSAND_AMPERSAND,
-        PIPE,
-        PIPE_PIPE,
+        AMPERSAND,
         BANG_EQUAL,
         BANG,
         BRACE_LEFT,
         BRACE_RIGHT,
+        BRACKET_LEFT,
+        BRACKET_RIGHT,
         COLON,
         COMMA,
         DASH_ARROW,
@@ -32,6 +32,8 @@ record Token(@NonNull Type type, @NonNull String lexeme, int line) {
         MINUS,
         PAREN_LEFT,
         PAREN_RIGHT,
+        PIPE_PIPE,
+        PIPE,
         PLUS,
         QUESTION,
         SLASH,

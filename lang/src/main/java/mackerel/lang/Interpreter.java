@@ -14,6 +14,8 @@ import mackerel.lang.Expr.Binding;
 import mackerel.lang.Expr.Builder;
 import mackerel.lang.Expr.Grouping;
 import mackerel.lang.Expr.Logical;
+import mackerel.lang.Expr.Sequence;
+import mackerel.lang.Expr.Table;
 import mackerel.lang.Expr.Unary;
 import mackerel.lang.Expr.Variable;
 import mackerel.lang.Stmt.Declaration;
@@ -21,15 +23,22 @@ import mackerel.lang.Token.Type;
 
 final class Interpreter {
 
-    public record Error(String message, Token token) {}
+    public record Message(String message, Token token) {}
 
     @Getter
-    private final List<Error> errors = new ArrayList<>();
+    private final List<Message> errors = new ArrayList<>();
+
+    @Getter
+    private final List<Message> warnings = new ArrayList<>();
 
     private final Map<String, Lazy<Object>> declarations = new LinkedHashMap<>();
 
     public boolean hasErrors() {
         return !errors.isEmpty();
+    }
+
+    public boolean hasWarnings() {
+        return !warnings.isEmpty();
     }
 
     public void interpret(List<Stmt> statements) {
@@ -86,6 +95,14 @@ final class Interpreter {
 
         if (expr instanceof Expr.Logical logical) {
             return evaluateLogicalExpr(logical);
+        }
+
+        if (expr instanceof Expr.Sequence sequence) {
+            return evaluateSequenceExpr(sequence);
+        }
+
+        if (expr instanceof Expr.Table table) {
+            return evaluateTableExpr(table);
         }
 
         if (expr instanceof Expr.Unary unary) {
@@ -213,6 +230,27 @@ final class Interpreter {
         return (Boolean) right;
     }
 
+    private Object evaluateSequenceExpr(Sequence sequence) {
+        var result = new ArrayList<Object>();
+        for (var element : sequence.elements()) {
+            result.add(evaluate(element));
+        }
+        return result;
+    }
+
+    private Object evaluateTableExpr(Table table) {
+        var result = new LinkedHashMap<Object, Object>();
+        for (var pair : table.pairs()) {
+            var key = evaluate(pair.left());
+            var value = evaluate(pair.right());
+            if (result.containsKey(key)) {
+                errors.add(new Message("Duplicate key in table: " + key, pair.operator()));
+            }
+            result.put(key, value);
+        }
+        return result;
+    }
+
     private Object evaluateUnaryExpr(Unary unary) {
         var op = unary.operator();
         var value = evaluate(unary.right());
@@ -310,8 +348,8 @@ final class Interpreter {
             this.token = token;
         }
 
-        public Error asError() {
-            return new Error(getMessage(), token);
+        public Message asError() {
+            return new Message(getMessage(), token);
         }
     }
 }

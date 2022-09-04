@@ -14,14 +14,17 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 final class Parser {
 
-    public static record Error(Token token, String message) {}
+    public static record Message(Token token, String message) {}
 
     private static class ParseError extends RuntimeException {}
 
     private final @NonNull List<Token> tokens;
 
     @Getter
-    private final List<Error> errors = new ArrayList<>();
+    private final List<Message> errors = new ArrayList<>();
+
+    @Getter
+    private final List<Message> warnings = new ArrayList<>();
 
     private int current = 0;
 
@@ -35,6 +38,10 @@ final class Parser {
 
     public boolean hasErrors() {
         return !errors.isEmpty();
+    }
+
+    public boolean hasWarnings() {
+        return !warnings.isEmpty();
     }
 
     //// grammar rules ////
@@ -76,15 +83,20 @@ final class Parser {
             consume(PAREN_RIGHT, "Expect ')' after expression.");
             return new Expr.Grouping(expr);
         }
+        if (match(BRACKET_LEFT)) {
+        }
         throw error(peek(), "Expect expression.");
     }
 
     private Expr binding() {
         var left = primary();
         if (check(COLON)) {
-            advance();
+            if (left instanceof Expr.Variable variable) {
+                left = new Expr.Literal(variable.name().lexeme());
+            }
+            var colon = advance();
             var right = expression();
-            return new Expr.Binding(left, right);
+            return new Expr.Binding(left, colon, right);
         }
         return left;
     }
@@ -170,7 +182,50 @@ final class Parser {
         return expr;
     }
 
+    private Expr sequence() {
+        var elements = new ArrayList<Expr>();
+
+        if (match(COLON)) { // empty table
+            consume(BRACKET_RIGHT, "Expect ']' after table.");
+            return new Expr.Table(new ArrayList<>());
+        }
+
+        if (match(BRACKET_RIGHT)) { // empty sequence
+            return new Expr.Sequence(new ArrayList<>());
+        }
+
+        ignoreEOL();
+
+        Boolean isTable = null;
+        do {
+            var element = expression();
+            if (isTable == null) {
+                isTable = element instanceof Expr.Binding;
+            } else if (!isTable && element instanceof Expr.Binding) {
+                throw error(previous(), "Expect sequence element.");
+            } else if (isTable && !(element instanceof Expr.Binding)) {
+                throw error(previous(), "Expect table binding.");
+            }
+            elements.add(element);
+        } while (match(EOL) && !check(BRACKET_RIGHT));
+
+        if (isTable) {
+            consume(BRACKET_RIGHT, "Expect ']' after table.");
+            var pairs = new ArrayList<Expr.Binding>();
+            for (var element : elements) {
+                pairs.add((Expr.Binding) element);
+            }
+            return new Expr.Table(pairs);
+        }
+
+        consume(BRACKET_RIGHT, "Expect ']' after table.");
+        return new Expr.Sequence(elements);
+    }
+
     private Expr expression() {
+        if (match(BRACKET_LEFT)) {
+            return sequence();
+        }
         return or();
     }
 
@@ -216,13 +271,18 @@ final class Parser {
     }
 
     private ParseError error(Token token, String message) {
-        errors.add(new Error(token, message));
+        errors.add(new Message(token, message));
         return new ParseError();
     }
 
     private void synchronize() {
         advance();
-        ignoreEOL();
+
+        while (!isAtEnd()) {
+            if (previous().type() == EOL) {
+                return;
+            }
+        }
     }
 
     private boolean match(Token.Type... types) {

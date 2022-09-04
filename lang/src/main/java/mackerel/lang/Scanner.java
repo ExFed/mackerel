@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 final class Scanner {
 
-    static record Error(int line, String message) {};
+    static record Message(int line, String message) {};
 
     private static final Map<String, Token.Type> keywords = Map.ofEntries(
         entry("true", TRUE),
@@ -23,7 +23,8 @@ final class Scanner {
 
     private final @NonNull String source;
     private final List<Token> tokens = new ArrayList<>();
-    private final List<Error> errors = new ArrayList<>();
+    private final List<Message> errors = new ArrayList<>();
+    private final List<Message> warnings = new ArrayList<>();
 
     private int start = 0;
     private int current = 0;
@@ -31,6 +32,10 @@ final class Scanner {
 
     boolean hasErrors() {
         return !errors.isEmpty();
+    }
+
+    public boolean hasWarnings() {
+        return !warnings.isEmpty();
     }
 
     List<Token> scanTokens() {
@@ -75,6 +80,12 @@ final class Scanner {
             break;
         case '}':
             addToken(BRACE_RIGHT);
+            break;
+        case '[':
+            addToken(BRACKET_LEFT);
+            break;
+        case ']':
+            addToken(BRACKET_RIGHT);
             break;
         case ',':
             addToken(COMMA);
@@ -138,10 +149,18 @@ final class Scanner {
 
         case '\n':
             line++;
-            addToken(EOL);
+            if (checkLast(EOL) && ";".equals(last().lexeme())) {
+                warning(last().line(), "Unnecessary ';'");
+            } else {
+                addToken(EOL);
+            }
             break;
         case ';':
-            addToken(EOL);
+            if (checkLast(EOL)) {
+                warning(line, "Unnecessary ';'");
+            } else {
+                addToken(EOL);
+            }
             break;
 
         case '"':
@@ -292,12 +311,28 @@ final class Scanner {
         return source.charAt(current + 1);
     }
 
+    private Token last() {
+        if (tokens.isEmpty()) {
+            return null;
+        }
+        return tokens.get(tokens.size() - 1);
+    }
+
+    private boolean checkLast(Token.Type type) {
+        var last = last();
+        return last != null && last.type() == type;
+    }
+
     private void addToken(Token.Type type) {
         var text = source.substring(start, current);
         tokens.add(new Token(type, text, line));
     }
 
     private void error(int line, String msg) {
-        errors.add(new Error(line, msg));
+        errors.add(new Message(line, msg));
+    }
+
+    private void warning(int line, String msg) {
+        warnings.add(new Message(line, msg));
     }
 }
