@@ -11,6 +11,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor(access = PRIVATE)
@@ -38,7 +39,7 @@ public class Mackerel {
             bytes = Files.readAllBytes(Paths.get(path));
         }
 
-        return run(new String(bytes, Charset.defaultCharset()));
+        return run(new String(bytes, Charset.defaultCharset()), new Flags());
     }
 
     private static int runPrompt() throws IOException {
@@ -46,14 +47,31 @@ public class Mackerel {
 
         var unmatchedBraces = 0;
         var lineBuffer = new ArrayList<String>();
+        var flags = new Flags();
         for (;;) {
             var prompt = String.format(":%02d> ", lineBuffer.size());
             System.out.print(prompt);
             var line = reader.readLine();
 
-            // TODO flags
             if (line == null || ":q".equals(line)) {
                 break;
+            } else if (":b".equals(line)) {
+                int n = 0;
+                for (var l : lineBuffer) {
+                    System.out.println(String.format("%02d  %s", ++n, l));
+                }
+            } else if (line.startsWith(":tok")) {
+                var arg = line.substring(4).trim();
+                if (!arg.isBlank()) {
+                    flags.printTokens = Boolean.parseBoolean(arg);
+                }
+                System.out.println("print tokens: " + flags.printTokens);
+            } else if (line.startsWith(":ast")) {
+                var arg = line.substring(4).trim();
+                if (!arg.isBlank()) {
+                    flags.printAst = Boolean.parseBoolean(arg);
+                }
+                System.out.println("print ast: " + flags.printAst);
             } else if (!line.isEmpty()) {
                 lineBuffer.add(line);
                 unmatchedBraces += countUnmatchedBraces(line);
@@ -61,7 +79,7 @@ public class Mackerel {
                 // if braces are at least balanced, flush the buffer
                 if (unmatchedBraces <= 0) {
                     var source = String.join("\n", lineBuffer);
-                    run(source);
+                    run(source, flags);
                     lineBuffer.clear();
                     unmatchedBraces = 0;
                 }
@@ -70,9 +88,13 @@ public class Mackerel {
         return 0;
     }
 
-    private static int run(String source) {
+    private static int run(String source, Flags flags) {
         var scanner = new Scanner(source);
         var tokens = scanner.scanTokens();
+
+        if (flags.printTokens) {
+            tokens.forEach(System.out::println);
+        }
 
         scanner.getWarnings().forEach(Mackerel::report);
 
@@ -83,6 +105,10 @@ public class Mackerel {
 
         var parser = new Parser(tokens);
         var parsed = parser.parse();
+
+        if (flags.printAst) {
+            parsed.forEach(System.out::println);
+        }
 
         parser.getWarnings().forEach(Mackerel::report);
 
@@ -145,5 +171,10 @@ public class Mackerel {
             }
         }
         return count;
+    }
+
+    private static class Flags {
+        boolean printTokens = false;
+        boolean printAst = false;
     }
 }

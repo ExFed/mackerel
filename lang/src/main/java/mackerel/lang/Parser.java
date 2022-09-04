@@ -83,8 +83,6 @@ final class Parser {
             consume(PAREN_RIGHT, "Expect ')' after expression.");
             return new Expr.Grouping(expr);
         }
-        if (match(BRACKET_LEFT)) {
-        }
         throw error(peek(), "Expect expression.");
     }
 
@@ -279,7 +277,7 @@ final class Parser {
         advance();
 
         while (!isAtEnd()) {
-            if (previous().type() == EOL) {
+            if (advance().type() == EOL) {
                 return;
             }
         }
