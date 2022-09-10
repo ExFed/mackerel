@@ -90,7 +90,7 @@ public class Mackerel {
 
     private static int run(String source, Flags flags) {
         var scanner = new Scanner(source);
-        var tokens = scanner.scanTokens();
+        var tokens = scanner.getTokens();
 
         if (flags.printTokens) {
             tokens.forEach(System.out::println);
@@ -103,7 +103,7 @@ public class Mackerel {
             return 1;
         }
 
-        var parser = new Parser(tokens);
+        var parser = new Parser(new TokenStream(tokens));
         var parsed = parser.parse();
 
         if (flags.printAst) {
@@ -157,7 +157,7 @@ public class Mackerel {
     private static int countUnmatchedBraces(String line) {
         // scan as tokens
         var scanner = new Scanner(line);
-        var tokens = scanner.scanTokens();
+        var tokens = scanner.getTokens();
 
         // count number of unmatched braces
         int count = 0;

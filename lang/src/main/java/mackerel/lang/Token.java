@@ -2,11 +2,15 @@ package mackerel.lang;
 
 import lombok.NonNull;
 
-record Token(@NonNull Type type, @NonNull String lexeme, int line) {
+record Token(
+    @NonNull Type type,
+    @NonNull String lexeme,
+    int line,
+    boolean hidden) {
 
     @Override
     public String toString() {
-        return type + " " + lexeme + " " + line;
+        return type + " " + lexeme + " " + line + (hidden ? " HIDDEN" : "") ;
     }
 
     enum Type {
@@ -52,6 +56,7 @@ record Token(@NonNull Type type, @NonNull String lexeme, int line) {
 
         // end-of-line
         EOL,
+        SEMICOLON,
 
         // end-of-file
         EOF;

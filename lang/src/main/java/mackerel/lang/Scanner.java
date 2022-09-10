@@ -38,13 +38,17 @@ final class Scanner {
         return !warnings.isEmpty();
     }
 
-    List<Token> scanTokens() {
+    List<Token> getTokens() {
+        if (!tokens.isEmpty()) {
+            return tokens;
+        }
+
         while (!isAtEnd()) {
             start = current;
             scanToken();
         }
 
-        tokens.add(new Token(EOF, "", line));
+        tokens.add(new Token(EOF, "", line, false));
         return tokens;
     }
 
@@ -145,22 +149,25 @@ final class Scanner {
         case ' ':
         case '\r':
         case '\t':
+            // completely ignore
             break;
 
         case '\n':
-            line++;
-            if (checkLast(EOL) && ";".equals(last().lexeme())) {
+            if (checkLast(SEMICOLON)) {
                 warning(last().line(), "Unnecessary ';'");
-            } else {
-                addToken(EOL);
             }
+            // squash subsequent EOL tokens
+            if (!checkLast(EOL)) {
+                // defer decision to ignore
+                addToken(EOL, true);
+            }
+            line++;
             break;
         case ';':
-            if (checkLast(EOL)) {
+            if (checkLast(SEMICOLON)) {
                 warning(line, "Unnecessary ';'");
-            } else {
-                addToken(EOL);
             }
+            addToken(SEMICOLON);
             break;
 
         case '"':
@@ -324,8 +331,12 @@ final class Scanner {
     }
 
     private void addToken(Token.Type type) {
+        addToken(type, false);
+    }
+
+    private void addToken(Token.Type type, boolean hidden) {
         var text = source.substring(start, current);
-        tokens.add(new Token(type, text, line));
+        tokens.add(new Token(type, text, line, hidden));
     }
 
     private void error(int line, String msg) {

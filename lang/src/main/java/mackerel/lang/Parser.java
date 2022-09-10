@@ -18,15 +18,13 @@ final class Parser {
 
     private static class ParseError extends RuntimeException {}
 
-    private final @NonNull List<Token> tokens;
+    private final @NonNull TokenStream tokens;
 
     @Getter
     private final List<Message> errors = new ArrayList<>();
 
     @Getter
     private final List<Message> warnings = new ArrayList<>();
-
-    private int current = 0;
 
     public List<Stmt> parse() {
         var statements = new ArrayList<Stmt>();
@@ -298,30 +296,8 @@ final class Parser {
         return !isAtEnd() && peek().type() == type;
     }
 
-    private boolean checkNext(Token.Type type) {
-        var nextType = peekNext().type();
-        return nextType != EOF && nextType == type;
-    }
-
-    private boolean checkNext(Token.Type first, Token.Type... rest) {
-        if (checkNext(first)) {
-            return true;
-        }
-
-        for (var type : rest) {
-            if (checkNext(type)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private Token advance() {
-        if (!isAtEnd()) {
-            current++;
-        }
-        var token = previous();
-        return token;
+        return tokens.advance();
     }
 
     private void ignoreEOL() {
@@ -335,17 +311,14 @@ final class Parser {
     }
 
     private Token peek() {
-        return tokens.get(current);
+        return tokens.peek();
     }
 
     private Token peekNext() {
-        if (isAtEnd()) {
-            return peek();
-        }
-        return tokens.get(current + 1);
+        return tokens.peekNext();
     }
 
     private Token previous() {
-        return tokens.get(current - 1);
+        return tokens.previous();
     }
 }
