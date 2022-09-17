@@ -14,7 +14,7 @@ import mackerel.lang.Expr.Binding;
 import mackerel.lang.Expr.Builder;
 import mackerel.lang.Expr.Grouping;
 import mackerel.lang.Expr.Logical;
-import mackerel.lang.Expr.Sequence;
+import mackerel.lang.Expr.Tuple;
 import mackerel.lang.Expr.Table;
 import mackerel.lang.Expr.Unary;
 import mackerel.lang.Expr.Variable;
@@ -97,8 +97,8 @@ final class Interpreter {
             return evaluateLogicalExpr(logical);
         }
 
-        if (expr instanceof Expr.Sequence sequence) {
-            return evaluateSequenceExpr(sequence);
+        if (expr instanceof Expr.Tuple tuple) {
+            return evaluateTupleExpr(tuple);
         }
 
         if (expr instanceof Expr.Table table) {
@@ -230,7 +230,7 @@ final class Interpreter {
         return (Boolean) right;
     }
 
-    private Object evaluateSequenceExpr(Sequence sequence) {
+    private Object evaluateTupleExpr(Tuple sequence) {
         var result = new ArrayList<Object>();
         for (var element : sequence.elements()) {
             result.add(evaluate(element));
@@ -280,7 +280,11 @@ final class Interpreter {
     }
 
     private Object evaluateVariableExpr(Variable variable) {
-        return declarations.get(variable.name().lexeme()).get();
+        var key = variable.name().lexeme();
+        if (!declarations.containsKey(key)) {
+            throw new InterpreterError(variable.name(), "Cannot find variable: " + key);
+        }
+        return declarations.get(key).get();
     }
 
     // **** UTILITIES ****

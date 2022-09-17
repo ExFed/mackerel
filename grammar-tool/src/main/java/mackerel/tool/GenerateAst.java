@@ -33,8 +33,8 @@ public class GenerateAst {
             "Grouping   : Expr expression",
             "Literal    : Object value",
             "Logical    : Expr left, Token operator, Expr right",
-            "Sequence   : List>Expr elements",
             "Table      : List>Binding pairs",
+            "Tuple      : List>Expr elements",
             "Unary      : Token operator, Expr right",
             "Variable   : Token name"
         );

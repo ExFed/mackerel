@@ -43,26 +43,26 @@ public class TokenStreamTest {
     @Test
     void hidden() {
         includeHidden = true;
-        assertNextToken(new Token(IDENTIFIER, "hello", 1, false));
-        assertNextToken(new Token(SEMICOLON, ";", 1, false));
-        assertNextToken(new Token(EOL, "\n", 1, true));
-        assertNextToken(new Token(IDENTIFIER, "world", 2, false));
-        assertNextToken(new Token(SEMICOLON, ";", 2, false));
-        assertNextToken(new Token(INTEGER, "42", 2, false));
-        assertNextToken(new Token(EOL, "\n", 2, true));
+        assertNextToken(new Token(IDENTIFIER, "hello", 1, 1, false));
+        assertNextToken(new Token(SEMICOLON, ";", 1, 6, false));
+        assertNextToken(new Token(EOL, "\n", 1, 7, true));
+        assertNextToken(new Token(IDENTIFIER, "world", 2, 1, false));
+        assertNextToken(new Token(SEMICOLON, ";", 2, 6, false));
+        assertNextToken(new Token(INTEGER, "42", 2, 7, false));
+        assertNextToken(new Token(EOL, "\n", 2, 9, true));
         expectAtEnd = true;
-        assertNextToken(new Token(EOF, "", 3, false));
+        assertNextToken(new Token(EOF, "", 3, 1, false));
     }
 
     @Test
     void visible() {
         includeHidden = false;
-        assertNextToken(new Token(IDENTIFIER, "hello", 1, false));
-        assertNextToken(new Token(SEMICOLON, ";", 1, false));
-        assertNextToken(new Token(IDENTIFIER, "world", 2, false));
-        assertNextToken(new Token(SEMICOLON, ";", 2, false));
-        assertNextToken(new Token(INTEGER, "42", 2, false));
+        assertNextToken(new Token(IDENTIFIER, "hello", 1, 1, false));
+        assertNextToken(new Token(SEMICOLON, ";", 1, 6, false));
+        assertNextToken(new Token(IDENTIFIER, "world", 2, 1, false));
+        assertNextToken(new Token(SEMICOLON, ";", 2, 6, false));
+        assertNextToken(new Token(INTEGER, "42", 2, 7, false));
         expectAtEnd = true;
-        assertNextToken(new Token(EOF, "", 3, false));
+        assertNextToken(new Token(EOF, "", 3, 1, false));
     }
 }

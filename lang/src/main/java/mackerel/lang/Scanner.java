@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 final class Scanner {
 
-    static record Message(int line, String message) {};
+    static record Message(int line, int column, String message) {};
 
     private static final Map<String, Token.Type> keywords = Map.ofEntries(
         entry("true", TRUE),
@@ -28,6 +28,7 @@ final class Scanner {
 
     private int start = 0;
     private int current = 0;
+    private int lineStart = 0;
     private int line = 1;
 
     boolean hasErrors() {
@@ -48,8 +49,13 @@ final class Scanner {
             scanToken();
         }
 
-        tokens.add(new Token(EOF, "", line, false));
+        start = current; // report the correct EOF column
+        tokens.add(new Token(EOF, "", line, getColumn(), false));
         return tokens;
+    }
+
+    private int getColumn() {
+        return 1 + start - lineStart;
     }
 
     private boolean isAtEnd() {
@@ -154,7 +160,7 @@ final class Scanner {
 
         case '\n':
             if (checkLast(SEMICOLON)) {
-                warning(last().line(), "Unnecessary ';'");
+                warning(last().line(), last().column(), "Unnecessary ';'");
             }
             // squash subsequent EOL tokens
             if (!checkLast(EOL)) {
@@ -162,10 +168,11 @@ final class Scanner {
                 addToken(EOL, true);
             }
             line++;
+            lineStart = current;
             break;
         case ';':
             if (checkLast(SEMICOLON)) {
-                warning(line, "Unnecessary ';'");
+                warning("Unnecessary ';'");
             }
             addToken(SEMICOLON);
             break;
@@ -180,7 +187,7 @@ final class Scanner {
             } else if (isAlpha(c)) {
                 identifier();
             } else {
-                error(line, "Unexpected character: '" + String.valueOf(c) + "'");
+                error("Unexpected character: '" + String.valueOf(c) + "'");
             }
         }
     }
@@ -249,7 +256,7 @@ final class Scanner {
                         value.append(advance());
                         break;
                     default:
-                        error(line, "Unexpected escape sequence.");
+                        error("Unexpected escape sequence.");
                         return;
                 }
                 esc = false;
@@ -261,7 +268,7 @@ final class Scanner {
             }
         }
         if (isAtEnd()) {
-            error(line, "Unterminated string.");
+            error("Unterminated string.");
             return;
         }
         advance();
@@ -272,6 +279,7 @@ final class Scanner {
         while (!isAtEnd() && !(peek() == '*' && peekNext() == '/')) {
             if (peek() == '\n') {
                 line++;
+                lineStart = current;
             }
             var c = advance();
             if (c == '/' && match('*')) {
@@ -280,7 +288,7 @@ final class Scanner {
         }
 
         if (isAtEnd()) {
-            error(line, "Unterminated comment.");
+            error("Unterminated comment.");
             return;
         }
         // discard the `*/`
@@ -336,14 +344,18 @@ final class Scanner {
 
     private void addToken(Token.Type type, boolean hidden) {
         var text = source.substring(start, current);
-        tokens.add(new Token(type, text, line, hidden));
+        tokens.add(new Token(type, text, line, getColumn(), hidden));
     }
 
-    private void error(int line, String msg) {
-        errors.add(new Message(line, msg));
+    private void error(String msg) {
+        errors.add(new Message(line, getColumn(), msg));
     }
 
-    private void warning(int line, String msg) {
-        warnings.add(new Message(line, msg));
+    private void warning(String msg) {
+        warning(line, getColumn(), msg);
+    }
+
+    private void warning(int line, int column, String msg) {
+        warnings.add(new Message(line, column, msg));
     }
 }

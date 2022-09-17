@@ -10,6 +10,7 @@ import java.util.List;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import mackerel.lang.Token.Type;
 
 @RequiredArgsConstructor
 final class Parser {
@@ -87,9 +88,6 @@ final class Parser {
     private Expr binding() {
         var left = primary();
         if (check(COLON)) {
-            if (left instanceof Expr.Variable variable) {
-                left = new Expr.Literal(variable.name().lexeme());
-            }
             var colon = advance();
             var right = expression();
             return new Expr.Binding(left, colon, right);
@@ -183,14 +181,12 @@ final class Parser {
 
         if (match(COLON)) { // empty table
             consume(BRACKET_RIGHT, "Expect ']' after table.");
-            return new Expr.Table(new ArrayList<>());
+            return new Expr.Table(List.of());
         }
 
         if (match(BRACKET_RIGHT)) { // empty sequence
-            return new Expr.Sequence(new ArrayList<>());
+            return new Expr.Tuple(List.of());
         }
-
-        ignoreEOL();
 
         Boolean isTable = null;
         do {
@@ -198,12 +194,12 @@ final class Parser {
             if (isTable == null) {
                 isTable = element instanceof Expr.Binding;
             } else if (!isTable && element instanceof Expr.Binding) {
-                throw error(previous(), "Expect sequence element.");
+                throw error(previous(), "Expect tuple element.");
             } else if (isTable && !(element instanceof Expr.Binding)) {
                 throw error(previous(), "Expect table binding.");
             }
             elements.add(element);
-        } while (match(EOL) && !check(BRACKET_RIGHT));
+        } while (matchHidden(EOL) && !check(BRACKET_RIGHT));
 
         if (isTable) {
             consume(BRACKET_RIGHT, "Expect ']' after table.");
@@ -215,7 +211,7 @@ final class Parser {
         }
 
         consume(BRACKET_RIGHT, "Expect ']' after table.");
-        return new Expr.Sequence(elements);
+        return new Expr.Tuple(elements);
     }
 
     private Expr expression() {
@@ -228,31 +224,33 @@ final class Parser {
     private Stmt declaration() {
         var type = advance();
         var definition = expression();
-        ignoreEOL();
         return new Stmt.Declaration(type, definition);
     }
 
     private Stmt expressionStatement() {
         var expression = expression();
-        if (!isAtEnd() && !check(BRACE_RIGHT)) {
-            consume(EOL, "Expect ';' or newline after expression.");
-        }
         return new Stmt.Expression(expression);
     }
 
     private Stmt statement() {
         Stmt stmt;
         try {
-            if (check(IDENTIFIER) && peekNext().type() != EOF && peekNext().type() != EOL) {
+            var nextType = peekNextHidden().type();
+            if (check(IDENTIFIER) && nextType != SEMICOLON && nextType != EOL && nextType != EOF) {
                 stmt = declaration();
             } else {
                 stmt = expressionStatement();
+            }
+
+            if (!isAtEndHidden()) {
+                if (!matchHidden(SEMICOLON)) {
+                    consumeHidden(EOL, "Expect ';' or newline after statement.");
+                }
             }
         } catch (ParseError ex) {
             synchronize();
             return null;
         }
-        ignoreEOL();
         return stmt;
     }
 
@@ -266,6 +264,14 @@ final class Parser {
         throw error(peek(), message);
     }
 
+    private Token consumeHidden(Token.Type type, String message) {
+        if (checkHidden(type)) {
+            return advanceHidden();
+        }
+
+        throw error(peekHidden(), message);
+    }
+
     private ParseError error(Token token, String message) {
         errors.add(new Message(token, message));
         return new ParseError();
@@ -274,8 +280,9 @@ final class Parser {
     private void synchronize() {
         advance();
 
-        while (!isAtEnd()) {
-            if (advance().type() == EOL) {
+        while (!isAtEndHidden()) {
+            var token = advanceHidden();
+            if (token.type() == EOL || token.type() == SEMICOLON) {
                 return;
             }
         }
@@ -292,30 +299,55 @@ final class Parser {
         return false;
     }
 
+    private boolean matchHidden(Token.Type... types) {
+        for (var type : types) {
+            if (checkHidden(type)) {
+                advanceHidden();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private boolean check(Token.Type type) {
         return !isAtEnd() && peek().type() == type;
+    }
+
+    private boolean checkHidden(Token.Type type) {
+        return !isAtEndHidden() && peekHidden().type() == type;
     }
 
     private Token advance() {
         return tokens.advance();
     }
 
-    private void ignoreEOL() {
-        while (check(EOL)) {
-            advance();
-        }
+    private Token advanceHidden() {
+        return tokens.advance(true);
     }
 
     private boolean isAtEnd() {
-        return peek().type() == EOF;
+        return tokens.isAtEnd();
+    }
+
+    private boolean isAtEndHidden() {
+        return tokens.isAtEnd(true);
     }
 
     private Token peek() {
         return tokens.peek();
     }
 
+    private Token peekHidden() {
+        return tokens.peek(true);
+    }
+
     private Token peekNext() {
         return tokens.peekNext();
+    }
+
+    private Token peekNextHidden() {
+        return tokens.peekNext(true);
     }
 
     private Token previous() {

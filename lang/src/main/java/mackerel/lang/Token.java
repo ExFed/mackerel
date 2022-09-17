@@ -6,11 +6,12 @@ record Token(
     @NonNull Type type,
     @NonNull String lexeme,
     int line,
+    int column,
     boolean hidden) {
 
     @Override
     public String toString() {
-        return type + " " + lexeme + " " + line + (hidden ? " HIDDEN" : "") ;
+        return type + " " + lexeme + " " + line + ":" + column + (hidden ? " HIDDEN" : "") ;
     }
 
     enum Type {

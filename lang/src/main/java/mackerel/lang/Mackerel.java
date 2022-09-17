@@ -132,15 +132,17 @@ public class Mackerel {
     }
 
     private static void report(Scanner.Message error) {
-        System.err.println("scanner: " + error.message() + " [line " + error.line() + "]");
+        System.err.println("scanner: " + error.message() + " [line " + error.line() + ", col " + error.column() + "]");
     }
 
     private static void report(Parser.Message error) {
-        System.err.println("parser: " + error.message() + " [line " + error.token().line() + "]");
+        var token = error.token();
+        System.err.println("parser: " + error.message() + " [line " + token.line() + ", col " + token.column() + "]");
     }
 
     private static void report(Interpreter.Message error) {
-        System.err.println("interpreter: " + error.message() + " [line " + error.token().line() + "]");
+        var token = error.token();
+        System.err.println("interpreter: " + error.message() + " [line " + token.line() + ", col " + token.column() + "]");
     }
 
     private static final List<Token.Type> OPEN = List.of(
