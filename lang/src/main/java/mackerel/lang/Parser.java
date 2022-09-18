@@ -10,7 +10,6 @@ import java.util.List;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import mackerel.lang.Token.Type;
 
 @RequiredArgsConstructor
 final class Parser {
@@ -199,7 +198,7 @@ final class Parser {
                 throw error(previous(), "Expect table binding.");
             }
             elements.add(element);
-        } while (matchHidden(EOL) && !check(BRACKET_RIGHT));
+        } while (matchHidden(EOL, SEMICOLON) && !check(BRACKET_RIGHT));
 
         if (isTable) {
             consume(BRACKET_RIGHT, "Expect ']' after table.");
@@ -210,7 +209,7 @@ final class Parser {
             return new Expr.Table(pairs);
         }
 
-        consume(BRACKET_RIGHT, "Expect ']' after table.");
+        consume(BRACKET_RIGHT, "Expect ']' after tuple.");
         return new Expr.Tuple(elements);
     }
 

@@ -159,9 +159,6 @@ final class Scanner {
             break;
 
         case '\n':
-            if (checkLast(SEMICOLON)) {
-                warning(last().line(), last().column(), "Unnecessary ';'");
-            }
             // squash subsequent EOL tokens
             if (!checkLast(EOL)) {
                 // defer decision to ignore
@@ -171,10 +168,11 @@ final class Scanner {
             lineStart = current;
             break;
         case ';':
-            if (checkLast(SEMICOLON)) {
+            if (peek() == '\n' || peek() == ';' || isAtEnd()) {
                 warning("Unnecessary ';'");
+            } else {
+                addToken(SEMICOLON);
             }
-            addToken(SEMICOLON);
             break;
 
         case '"':
