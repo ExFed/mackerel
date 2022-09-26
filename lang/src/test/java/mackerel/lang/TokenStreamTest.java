@@ -44,7 +44,6 @@ public class TokenStreamTest {
     void hidden() {
         includeHidden = true;
         assertNextToken(new Token(IDENTIFIER, "hello", 1, 1, false));
-        assertNextToken(new Token(SEMICOLON, ";", 1, 6, false));
         assertNextToken(new Token(EOL, "\n", 1, 7, true));
         assertNextToken(new Token(IDENTIFIER, "world", 2, 1, false));
         assertNextToken(new Token(SEMICOLON, ";", 2, 6, false));
@@ -58,7 +57,6 @@ public class TokenStreamTest {
     void visible() {
         includeHidden = false;
         assertNextToken(new Token(IDENTIFIER, "hello", 1, 1, false));
-        assertNextToken(new Token(SEMICOLON, ";", 1, 6, false));
         assertNextToken(new Token(IDENTIFIER, "world", 2, 1, false));
         assertNextToken(new Token(SEMICOLON, ";", 2, 6, false));
         assertNextToken(new Token(INTEGER, "42", 2, 7, false));

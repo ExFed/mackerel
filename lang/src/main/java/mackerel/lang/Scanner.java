@@ -167,8 +167,9 @@ final class Scanner {
             line++;
             lineStart = current;
             break;
+
         case ';':
-            if (peek() == '\n' || peek() == ';' || isAtEnd()) {
+            if (checkLast(EOL) || peek() == '\n' || peek() == ';' || isAtEnd()) {
                 warning("Unnecessary ';'");
             } else {
                 addToken(SEMICOLON);
