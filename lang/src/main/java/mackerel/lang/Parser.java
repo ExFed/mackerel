@@ -70,7 +70,11 @@ final class Parser {
 
     //// grammar rules ////
 
-    // source      :: statement* EOF
+    /**
+     * <pre>
+     * source      :: statement* EOF
+     * </pre>
+     */
     private Ast.Source source() {
         var statements = new ArrayList<Ast.Stmt>();
         while (!isAtEnd()) {
@@ -80,7 +84,11 @@ final class Parser {
     }
 
 
-    // statement   :: ( "@[ annotation ( EOL annotation )* EOL? "]" )? ID expression EOL
+    /**
+     * <pre>
+     * statement   :: ( "@[ annotation ( EOL annotation )* EOL? "]" )? ID expression EOL
+     * </pre>
+     */
     private Ast.Stmt statement() {
         var type = advance();
         var value = expression();
@@ -88,17 +96,39 @@ final class Parser {
     }
 
     // TODO
-    // annotation  :: ID ":" expression
+    /**
+     * <pre>
+     * annotation  :: ID ":" expression
+     * </pre>
+     */
+    private Ast annotation() {
+        throw new UnsupportedOperationException("todo");
+    }
 
-    // expression  :: lambda
+    /**
+     * <pre>
+     * expression  :: lambda
+     * </pre>
+     */
     private Ast expression() {
         return or();
     }
 
     // TODO
-    // lambda      :: ( ID ( "," ID )* "->" expression ) | or
+    /**
+     * <pre>
+     * lambda      :: ( ID ( "," ID )* "->" expression ) | or
+     * </pre>
+     */
+    private Ast lambda() {
+        throw new UnsupportedOperationException("todo");
+    }
 
-    // or          :: and ( "||" and )*
+    /**
+     * <pre>
+     * or          :: and ( "||" and )*
+     * </pre>
+     */
     private Ast or() {
         var expr = and();
 
@@ -111,7 +141,11 @@ final class Parser {
         return expr;
     }
 
-    // and         :: equality ( "&&" equality )*
+    /**
+     * <pre>
+     * and         :: equality ( "&&" equality )*
+     * </pre>
+     */
     private Ast and() {
         var expr = equality();
 
@@ -124,7 +158,11 @@ final class Parser {
         return expr;
     }
 
-    // equality    :: comparison ( ( "==" | "!=" ) comparison )*
+    /**
+     * <pre>
+     * equality    :: comparison ( ( "==" | "!=" ) comparison )*
+     * </pre>
+     */
     private Ast equality() {
         var expr = comparison();
 
@@ -137,7 +175,11 @@ final class Parser {
         return expr;
     }
 
-    // comparison  :: term ( ( ">" | ">=" | "<" | "<=" ) term )*
+    /**
+     * <pre>
+     * comparison  :: term ( ( ">" | ">=" | "<" | "<=" ) term )*
+     * </pre>
+     */
     private Ast comparison() {
         var expr = term();
 
@@ -150,7 +192,11 @@ final class Parser {
         return expr;
     }
 
-    // term        :: factor ( ( "-" | "+" ) factor )*
+    /**
+     * <pre>
+     * term        :: factor ( ( "-" | "+" ) factor )*
+     * </pre>
+     */
     private Ast term() {
         var expr = factor();
 
@@ -163,7 +209,11 @@ final class Parser {
         return expr;
     }
 
-    // factor      :: unary ( ( "/" | "*" ) unary )*
+    /**
+     * <pre>
+     * factor      :: unary ( ( "/" | "*" ) unary )*
+     * </pre>
+     */
     private Ast factor() {
         var expr = unary();
 
@@ -176,7 +226,11 @@ final class Parser {
         return expr;
     }
 
-    // unary       :: ( ( "!" | "-" | "+" ) unary ) | binding
+    /**
+     * <pre>
+     * unary       :: ( ( "!" | "-" | "+" ) unary ) | binding
+     * </pre>
+     */
     private Ast unary() {
         if (match(BANG, MINUS, PLUS, TILDE)) {
             var operator = previous();
@@ -186,7 +240,11 @@ final class Parser {
         return binding();
     }
 
-    // binding     :: call ( ":" expression )?
+    /**
+     * <pre>
+     * binding     :: call ( ":" expression )?
+     * </pre>
+     */
     private Ast binding() {
         var left = primary();
         if (check(COLON)) {
@@ -198,12 +256,23 @@ final class Parser {
     }
 
     // TODO
-    // call        :: primary ( "(" expression ( "," expression )* ")" )?
+    /**
+     * <pre>
+     * call        :: primary ( "(" expression ( "," expression )* ")" )?
+     * </pre>
+     */
+    private Ast call() {
+        throw new UnsupportedOperationException("todo");
+    }
 
-    // primary     :: STRING | INTEGER | DECIMAL | TRUE | FALSE
-    //             | ( ID ( "{" builder "}" )? )
-    //             | "[]" | ( "[" sequence "]" )
-    //             | ( "(" expression ")" )
+    /**
+     * <pre>
+     * primary     :: STRING | INTEGER | DECIMAL | TRUE | FALSE
+     *             | ( ID ( "{" builder "}" )? )
+     *             | "[]" | ( "[" sequence "]" )
+     *             | ( "(" expression ")" )
+     * </pre>
+     */
     private Ast primary() {
         if (match(FALSE)) {
             return new Ast.Literal(false, previous());
@@ -241,7 +310,11 @@ final class Parser {
         throw error(peek(), "Expect primary.");
     }
 
-    // builder     :: statement*
+    /**
+     * <pre>
+     * builder     :: statement*
+     * </pre>
+     */
     private Ast builder() {
         var identifier = previous();
         advance(); // BRACE_LEFT
@@ -253,7 +326,11 @@ final class Parser {
         return new Ast.Builder(identifier, statements);
     }
 
-    // sequence    :: expression ( EOL expression )* EOL?
+    /**
+     * <pre>
+     * sequence    :: expression ( EOL expression )* EOL?
+     * </pre>
+     */
     private Ast sequence() {
         var elements = new ArrayList<Ast>();
 
