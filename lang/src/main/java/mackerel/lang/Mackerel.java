@@ -11,7 +11,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor(access = PRIVATE)
@@ -39,7 +38,7 @@ public class Mackerel {
             bytes = Files.readAllBytes(Paths.get(path));
         }
 
-        return run(new String(bytes, Charset.defaultCharset()), new Flags());
+        return run(new String(bytes, Charset.defaultCharset()), new Flags(), false);
     }
 
     private static int runPrompt() throws IOException {
@@ -79,7 +78,7 @@ public class Mackerel {
                 // if braces are at least balanced, flush the buffer
                 if (unmatchedBraces <= 0) {
                     var source = String.join("\n", lineBuffer);
-                    run(source, flags);
+                    run(source, flags, true);
                     lineBuffer.clear();
                     unmatchedBraces = 0;
                 }
@@ -88,7 +87,7 @@ public class Mackerel {
         return 0;
     }
 
-    private static int run(String source, Flags flags) {
+    private static int run(String source, Flags flags, boolean isRepl) {
         var scanner = new Scanner(source);
         var tokens = scanner.getTokens();
 
@@ -104,7 +103,7 @@ public class Mackerel {
         }
 
         var parser = new Parser(new TokenStream(tokens));
-        var parsed = parser.parse();
+        var parsed = isRepl ? parser.replParse() : parser.parse();
 
         if (flags.printAst) {
             parsed.forEach(System.out::println);

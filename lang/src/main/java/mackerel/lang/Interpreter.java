@@ -9,15 +9,14 @@ import java.util.Map;
 
 import lombok.Getter;
 import lombok.NonNull;
-import mackerel.lang.Expr.Binary;
-import mackerel.lang.Expr.Binding;
-import mackerel.lang.Expr.Builder;
-import mackerel.lang.Expr.Grouping;
-import mackerel.lang.Expr.Logical;
-import mackerel.lang.Expr.Sequence;
-import mackerel.lang.Expr.Unary;
-import mackerel.lang.Expr.Variable;
-import mackerel.lang.Stmt.Declaration;
+import mackerel.lang.Ast.Binary;
+import mackerel.lang.Ast.Binding;
+import mackerel.lang.Ast.Builder;
+import mackerel.lang.Ast.Grouping;
+import mackerel.lang.Ast.Logical;
+import mackerel.lang.Ast.Sequence;
+import mackerel.lang.Ast.Unary;
+import mackerel.lang.Ast.Variable;
 import mackerel.lang.Token.Type;
 
 final class Interpreter {
@@ -40,29 +39,24 @@ final class Interpreter {
         return !warnings.isEmpty();
     }
 
-    public void interpret(List<Stmt> statements) {
+    public void interpret(List<Ast> astNodes) {
         try {
-            for (var statement : statements) {
-                execute(statement);
+            for (var astNode : astNodes) {
+                if (astNode instanceof Ast.Stmt stmt) {
+                    executeStmt(stmt);
+                } else {
+                    System.out.println(evaluate(astNode));
+                }
             }
         } catch (InterpreterError ex) {
             errors.add(ex.asError());
         }
     }
 
-    private void execute(Stmt statement) {
-        if (statement instanceof Stmt.Expression expr) {
-            System.out.println(evaluate(expr.expression()));
-        } else if (statement instanceof Stmt.Declaration decl) {
-            executeDeclarationStmt(decl);
-        } else {
-            throw new IllegalArgumentException("unsupported statement: " + statement);
-        }
-    }
-
-    private void executeDeclarationStmt(Declaration decl) {
+    private void executeStmt(Ast.Stmt decl) {
         if ("decl".equals(decl.type().lexeme())) {
-            if (decl.definition() instanceof Expr.Binding binding && binding.left() instanceof Expr.Variable key) {
+            if (decl.value() instanceof Ast.Binding binding
+                    && binding.left() instanceof Ast.Variable key) {
                 var definition = binding.right();
                 declarations.put(key.name().lexeme(), Lazy.lazy(() -> evaluate(definition)));
             } else {
@@ -71,68 +65,64 @@ final class Interpreter {
         }
     }
 
-    private Object evaluate(Expr expr) {
-        if (expr instanceof Expr.Binary binary) {
+    private Object evaluate(Ast node) {
+        if (node instanceof Ast.Binary binary) {
             return evaluateBinaryExpr(binary);
         }
 
-        if (expr instanceof Expr.Binding binding) {
+        if (node instanceof Ast.Binding binding) {
             return evaluateBindingExpr(binding);
         }
 
-        if (expr instanceof Expr.Builder builder) {
+        if (node instanceof Ast.Builder builder) {
             return evaluateBuilderExpr(builder);
         }
 
-        if (expr instanceof Expr.Grouping grouping) {
+        if (node instanceof Ast.Grouping grouping) {
             return evaluateGroupingExpr(grouping);
         }
 
-        if (expr instanceof Expr.Literal literal) {
+        if (node instanceof Ast.Literal literal) {
             return literal.value();
         }
 
-        if (expr instanceof Expr.Logical logical) {
+        if (node instanceof Ast.Logical logical) {
             return evaluateLogicalExpr(logical);
         }
 
-        if (expr instanceof Expr.Sequence seq) {
+        if (node instanceof Ast.Sequence seq) {
             return evaluateSequenceExpr(seq);
         }
 
-        if (expr instanceof Expr.Unary unary) {
+        if (node instanceof Ast.Unary unary) {
             return evaluateUnaryExpr(unary);
         }
 
-        if (expr instanceof Expr.Variable variable) {
+        if (node instanceof Ast.Variable variable) {
             return evaluateVariableExpr(variable);
         }
 
-        return "TODO: unsupported expression:\n  " + expr;
+        return "TODO: unsupported syntax:\n  " + node;
     }
 
-    private List<Token> tokensOf(Stmt stmt) {
-        throw new IllegalArgumentException("unsupported statement: " + stmt);
-    }
-
-    private List<Token> tokensOf(Expr expr) {
+    private List<Token> tokensOf(Ast expr) {
         var tokens = new ArrayList<Token>();
 
-        if (expr instanceof Expr.Binary binary) {
+        if (expr instanceof Ast.Binary binary) {
             tokens.addAll(tokensOf(binary.left()));
             tokens.add(binary.operator());
             tokens.addAll(tokensOf(binary.right()));
             return tokens;
         }
 
-        if (expr instanceof Expr.Binding binding) {
+        if (expr instanceof Ast.Binding binding) {
             tokens.addAll(tokensOf(binding.left()));
             tokens.add(binding.operator());
             tokens.addAll(tokensOf(binding.right()));
             return tokens;
         }
 
-        if (expr instanceof Expr.Builder builder) {
+        if (expr instanceof Ast.Builder builder) {
             tokens.add(builder.type());
             for (var stmt : builder.statements()) {
                 tokens.addAll(tokensOf(stmt));
@@ -140,29 +130,29 @@ final class Interpreter {
             return tokens;
         }
 
-        if (expr instanceof Expr.Grouping grouping) {
+        if (expr instanceof Ast.Grouping grouping) {
             tokens.addAll(tokensOf(grouping.expression()));
             return tokens;
         }
 
-        if (expr instanceof Expr.Literal literal) {
+        if (expr instanceof Ast.Literal literal) {
             tokens.add(literal.token());
             return tokens;
         }
 
-        if (expr instanceof Expr.Logical logical) {
+        if (expr instanceof Ast.Logical logical) {
             return tokens;
         }
 
-        if (expr instanceof Expr.Sequence seq) {
+        if (expr instanceof Ast.Sequence seq) {
             return tokens;
         }
 
-        if (expr instanceof Expr.Unary unary) {
+        if (expr instanceof Ast.Unary unary) {
             return tokens;
         }
 
-        if (expr instanceof Expr.Variable variable) {
+        if (expr instanceof Ast.Variable variable) {
             return tokens;
         }
 
@@ -290,12 +280,12 @@ final class Interpreter {
             return result;
         }
 
-        if (elements.get(0) instanceof Expr.Binding) {
+        if (elements.get(0) instanceof Ast.Binding) {
             return evaluateTableExpr(sequence);
         }
 
         for (var element : elements) {
-            if (element instanceof Expr.Binding entry) {
+            if (element instanceof Ast.Binding entry) {
                 throw new InterpreterError(entry.operator(), "expect sequence element");
             }
             result.add(evaluate(element));
@@ -306,7 +296,7 @@ final class Interpreter {
     private Object evaluateTableExpr(Sequence sequence) {
         var result = new LinkedHashMap<Object, Object>();
         for (var elem : sequence.elements()) {
-            if (elem instanceof Expr.Binding pair) {
+            if (elem instanceof Ast.Binding pair) {
                 var key = (pair.left() instanceof Variable vt)
                     ? vt.name().lexeme()
                     : evaluate(pair.left());

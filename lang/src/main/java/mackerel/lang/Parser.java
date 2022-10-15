@@ -26,10 +26,18 @@ final class Parser {
     @Getter
     private final List<Message> warnings = new ArrayList<>();
 
-    public List<Stmt> parse() {
-        var statements = new ArrayList<Stmt>();
+    public List<Ast> parse() {
+        var statements = new ArrayList<Ast>();
         while (!isAtEnd()) {
             statements.add(statement());
+        }
+        return statements;
+    }
+
+    public List<Ast> replParse() {
+        var statements = new ArrayList<Ast>();
+        while (!isAtEnd()) {
+            statements.add(replStatement());
         }
         return statements;
     }
@@ -44,179 +52,14 @@ final class Parser {
 
     //// grammar rules ////
 
-    private Expr builder() {
-        var identifier = previous();
-        advance(); // BRACE_LEFT
-        var statements = new ArrayList<Stmt>();
-        while (!check(BRACE_RIGHT) && !isAtEnd()) {
-            statements.add(statement());
-        }
-        consume(BRACE_RIGHT, "Expect '}' after builder.");
-        return new Expr.Builder(identifier, statements);
-    }
-
-    private Expr sequence() {
-        var elements = new ArrayList<Expr>();
-
-        do {
-            elements.add(expression());
-        } while (matchHidden(EOL, SEMICOLON) && !check(BRACKET_RIGHT));
-
-        consume(BRACKET_RIGHT, "Expect ']' after tuple.");
-        return new Expr.Sequence(elements);
-    }
-
-    private Expr primary() {
-        if (match(FALSE)) {
-            return new Expr.Literal(false, previous());
-        }
-        if (match(TRUE)) {
-            return new Expr.Literal(true, previous());
-        }
-        if (match(STRING)) {
-            var lexeme = previous().lexeme();
-            var string = lexeme.substring(1, lexeme.length() - 1); // strip quotes
-            return new Expr.Literal(string, previous());
-        }
-        if (match(DECIMAL)) {
-            var value = new BigDecimal(previous().lexeme());
-            return new Expr.Literal(value, previous());
-        }
-        if (match(INTEGER)) {
-            var value = new BigInteger(previous().lexeme());
-            return new Expr.Literal(value, previous());
-        }
-        if (match(IDENTIFIER)) {
-            if (check(BRACE_LEFT)) {
-                return builder();
-            }
-            return new Expr.Variable(previous());
-        }
-        if (match(PAREN_LEFT)) {
-            var expr = expression();
-            consume(PAREN_RIGHT, "Expect ')' after expression.");
-            return new Expr.Grouping(expr);
-        }
-        if (match(BRACKET_LEFT)) {
-            return sequence();
-        }
-        throw error(peek(), "Expect expression.");
-    }
-
-    private Expr binding() {
-        var left = primary();
-        if (check(COLON)) {
-            var colon = advance();
-            var right = expression();
-            return new Expr.Binding(left, colon, right);
-        }
-        return left;
-    }
-
-    private Expr unary() {
-        if (match(BANG, MINUS, PLUS, TILDE)) {
-            var operator = previous();
-            var right = unary();
-            return new Expr.Unary(operator, right);
-        }
-        return binding();
-    }
-
-    private Expr factor() {
-        var expr = unary();
-
-        while (match(SLASH, STAR)) {
-            var operator = previous();
-            var right = unary();
-            expr = new Expr.Binary(expr, operator, right);
-        }
-
-        return expr;
-    }
-
-    private Expr term() {
-        var expr = factor();
-
-        while (match(MINUS, PLUS)) {
-            var operator = previous();
-            var right = factor();
-            expr = new Expr.Binary(expr, operator, right);
-        }
-
-        return expr;
-    }
-
-    private Expr comparison() {
-        var expr = term();
-
-        while (match(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)) {
-            var operator = previous();
-            var right = term();
-            expr = new Expr.Binary(expr, operator, right);
-        }
-
-        return expr;
-    }
-
-    private Expr equality() {
-        var expr = comparison();
-
-        while (match(BANG_EQUAL, EQUAL_EQUAL)) {
-            var operator = previous();
-            var right = comparison();
-            expr = new Expr.Binary(expr, operator, right);
-        }
-
-        return expr;
-    }
-
-    private Expr and() {
-        var expr = equality();
-
-        while (match(AMPERSAND_AMPERSAND)) {
-            var operator = previous();
-            var right = equality();
-            expr = new Expr.Logical(expr, operator, right);
-        }
-
-        return expr;
-    }
-
-    private Expr or() {
-        var expr = and();
-
-        while (match(PIPE_PIPE)) {
-            var operator = previous();
-            var right = and();
-            expr = new Expr.Logical(expr, operator, right);
-        }
-
-        return expr;
-    }
-
-    private Expr expression() {
-        return or();
-    }
-
-    private Stmt declaration() {
-        var type = advance();
-        var definition = expression();
-        return new Stmt.Declaration(type, definition);
-    }
-
-    private Stmt expressionStatement() {
-        var expression = expression();
-        return new Stmt.Expression(expression);
-    }
-
-    private Stmt statement() {
-        Stmt stmt;
+    private Ast replStatement() {
+        Ast stmt;
         try {
             var nextType = peekNextHidden().type();
             if (check(IDENTIFIER) && nextType != SEMICOLON && nextType != EOL && nextType != EOF) {
-                stmt = declaration();
+                stmt = statement();
             } else {
-                stmt = expressionStatement();
+                stmt = expression();
             }
 
             if (!isAtEndHidden()) {
@@ -229,6 +72,166 @@ final class Parser {
             return null;
         }
         return stmt;
+    }
+
+    private Ast.Stmt statement() {
+        var type = advance();
+        var value = expression();
+        return new Ast.Stmt(type, value);
+    }
+
+    private Ast expression() {
+        return or();
+    }
+
+    private Ast or() {
+        var expr = and();
+
+        while (match(PIPE_PIPE)) {
+            var operator = previous();
+            var right = and();
+            expr = new Ast.Logical(expr, operator, right);
+        }
+
+        return expr;
+    }
+
+    private Ast and() {
+        var expr = equality();
+
+        while (match(AMPERSAND_AMPERSAND)) {
+            var operator = previous();
+            var right = equality();
+            expr = new Ast.Logical(expr, operator, right);
+        }
+
+        return expr;
+    }
+
+    private Ast equality() {
+        var expr = comparison();
+
+        while (match(BANG_EQUAL, EQUAL_EQUAL)) {
+            var operator = previous();
+            var right = comparison();
+            expr = new Ast.Binary(expr, operator, right);
+        }
+
+        return expr;
+    }
+
+    private Ast comparison() {
+        var expr = term();
+
+        while (match(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)) {
+            var operator = previous();
+            var right = term();
+            expr = new Ast.Binary(expr, operator, right);
+        }
+
+        return expr;
+    }
+
+    private Ast term() {
+        var expr = factor();
+
+        while (match(MINUS, PLUS)) {
+            var operator = previous();
+            var right = factor();
+            expr = new Ast.Binary(expr, operator, right);
+        }
+
+        return expr;
+    }
+
+    private Ast factor() {
+        var expr = unary();
+
+        while (match(SLASH, STAR)) {
+            var operator = previous();
+            var right = unary();
+            expr = new Ast.Binary(expr, operator, right);
+        }
+
+        return expr;
+    }
+
+    private Ast unary() {
+        if (match(BANG, MINUS, PLUS, TILDE)) {
+            var operator = previous();
+            var right = unary();
+            return new Ast.Unary(operator, right);
+        }
+        return binding();
+    }
+
+    private Ast binding() {
+        var left = primary();
+        if (check(COLON)) {
+            var colon = advance();
+            var right = expression();
+            return new Ast.Binding(left, colon, right);
+        }
+        return left;
+    }
+
+    private Ast primary() {
+        if (match(FALSE)) {
+            return new Ast.Literal(false, previous());
+        }
+        if (match(TRUE)) {
+            return new Ast.Literal(true, previous());
+        }
+        if (match(STRING)) {
+            var lexeme = previous().lexeme();
+            var string = lexeme.substring(1, lexeme.length() - 1); // strip quotes
+            return new Ast.Literal(string, previous());
+        }
+        if (match(DECIMAL)) {
+            var value = new BigDecimal(previous().lexeme());
+            return new Ast.Literal(value, previous());
+        }
+        if (match(INTEGER)) {
+            var value = new BigInteger(previous().lexeme());
+            return new Ast.Literal(value, previous());
+        }
+        if (match(IDENTIFIER)) {
+            if (check(BRACE_LEFT)) {
+                return builder();
+            }
+            return new Ast.Variable(previous());
+        }
+        if (match(PAREN_LEFT)) {
+            var expr = expression();
+            consume(PAREN_RIGHT, "Expect ')' after expression.");
+            return new Ast.Grouping(expr);
+        }
+        if (match(BRACKET_LEFT)) {
+            return sequence();
+        }
+        throw error(peek(), "Expect expression.");
+    }
+
+    private Ast builder() {
+        var identifier = previous();
+        advance(); // BRACE_LEFT
+        var statements = new ArrayList<Ast.Stmt>();
+        while (!check(BRACE_RIGHT) && !isAtEnd()) {
+            statements.add(statement());
+        }
+        consume(BRACE_RIGHT, "Expect '}' after builder.");
+        return new Ast.Builder(identifier, statements);
+    }
+
+    private Ast sequence() {
+        var elements = new ArrayList<Ast>();
+
+        do {
+            elements.add(expression());
+        } while (matchHidden(EOL, SEMICOLON) && !check(BRACKET_RIGHT));
+
+        consume(BRACKET_RIGHT, "Expect ']' after tuple.");
+        return new Ast.Sequence(elements);
     }
 
     //// utility methods ////

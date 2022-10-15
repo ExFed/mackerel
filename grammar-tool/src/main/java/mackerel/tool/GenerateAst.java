@@ -28,24 +28,20 @@ public class GenerateAst {
             .map(Path::toFile)
             .forEach(File::delete);
 
-        var exprAst = parseAstDef("""
-            Binary     : Expr left, Token operator, Expr right
-            Binding    : Expr left, Token operator, Expr right
-            Builder    : Token type, List>Stmt statements
-            Grouping   : Expr expression
-            Literal    : Object value, Token token
-            Logical    : Expr left, Token operator, Expr right
-            Sequence   : List>Expr elements
-            Unary      : Token operator, Expr right
-            Variable   : Token name
+        var ast = parseAstDef("""
+            Binary      : Ast left, Token operator, Ast right
+            Binding     : Ast left, Token operator, Ast right
+            Builder     : Token type, List>Stmt statements
+            Grouping    : Ast expression
+            Literal     : Object value, Token token
+            Logical     : Ast left, Token operator, Ast right
+            Sequence    : List>Ast elements
+            Source      : List>Stmt statements
+            Stmt        : Token type, Ast value
+            Unary       : Token operator, Ast right
+            Variable    : Token name
             """);
-        writeAstDef(outputDir, "mackerel.lang.Expr", exprAst);
-
-        var stmtAst = parseAstDef("""
-            Declaration: Token type, Expr definition
-            Expression: Expr expression
-            """);
-        writeAstDef(outputDir, "mackerel.lang.Stmt", stmtAst);
+        writeAstDef(outputDir, "mackerel.lang.Ast", ast);
     }
 
     private static record NodeType(String name, NodeField[] fields) {};
@@ -122,7 +118,7 @@ public class GenerateAst {
         writer.println();
         writer.println("  <R> R accept(Visitor<R> visitor);");
 
-        // AST impls
+        // Ast impls
         for (var node : astDef) {
             writer.println();
             var className = node.name.trim();
