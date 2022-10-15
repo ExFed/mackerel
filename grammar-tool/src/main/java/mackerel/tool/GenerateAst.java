@@ -1,5 +1,7 @@
 package mackerel.tool;
 
+import static java.util.function.Predicate.not;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -26,32 +28,32 @@ public class GenerateAst {
             .map(Path::toFile)
             .forEach(File::delete);
 
-        var exprAst = parseAstDef(
-            "Binary     : Expr left, Token operator, Expr right",
-            "Binding    : Expr left, Token operator, Expr right",
-            "Builder    : Token type, List>Stmt statements",
-            "Grouping   : Expr expression",
-            "Literal    : Object value",
-            "Logical    : Expr left, Token operator, Expr right",
-            "Table      : List>Binding pairs",
-            "Tuple      : List>Expr elements",
-            "Unary      : Token operator, Expr right",
-            "Variable   : Token name"
-        );
+        var exprAst = parseAstDef("""
+            Binary     : Expr left, Token operator, Expr right
+            Binding    : Expr left, Token operator, Expr right
+            Builder    : Token type, List>Stmt statements
+            Grouping   : Expr expression
+            Literal    : Object value
+            Logical    : Expr left, Token operator, Expr right
+            Table      : List>Binding pairs
+            Tuple      : List>Expr elements
+            Unary      : Token operator, Expr right
+            Variable   : Token name
+            """);
         writeAstDef(outputDir, "mackerel.lang.Expr", exprAst);
 
-        var stmtAst = parseAstDef(
-            "Declaration: Token type, Expr definition",
-            "Expression: Expr expression"
-        );
+        var stmtAst = parseAstDef("""
+            Declaration: Token type, Expr definition
+            Expression: Expr expression
+            """);
         writeAstDef(outputDir, "mackerel.lang.Stmt", stmtAst);
     }
 
     private static record NodeType(String name, NodeField[] fields) {};
     private static record NodeField(String name, String type) {};
 
-    private static NodeType[] parseAstDef(String... lines) {
-        var entries = Stream.of(lines).map(line -> {
+    private static NodeType[] parseAstDef(String astDef) {
+        var entries = astDef.lines().filter(not(String::isBlank)).map(line -> {
             var sTokens = line.split(":", 2);
             var cName = sTokens[0].trim();
             var fields = sTokens[1].trim().split(",");
