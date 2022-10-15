@@ -39,7 +39,11 @@ final class Interpreter {
         return !warnings.isEmpty();
     }
 
-    public void interpret(List<Ast> astNodes) {
+    public void interpret(Ast.Source source) {
+        interpret(source.statements());
+    }
+
+    public void interpret(List<? extends Ast> astNodes) {
         try {
             for (var astNode : astNodes) {
                 if (astNode instanceof Ast.Stmt stmt) {

@@ -26,20 +26,38 @@ final class Parser {
     @Getter
     private final List<Message> warnings = new ArrayList<>();
 
-    public List<Ast> parse() {
-        var statements = new ArrayList<Ast>();
-        while (!isAtEnd()) {
-            statements.add(statement());
-        }
-        return statements;
+    public Ast.Source parse() {
+        return source();
     }
 
     public List<Ast> replParse() {
-        var statements = new ArrayList<Ast>();
+        var nodes = new ArrayList<Ast>();
         while (!isAtEnd()) {
-            statements.add(replStatement());
+            nodes.add(replParseNode());
         }
-        return statements;
+        return nodes;
+    }
+
+    private Ast replParseNode() {
+        Ast node;
+        try {
+            var nextType = peekNextHidden().type();
+            if (check(IDENTIFIER) && nextType != SEMICOLON && nextType != EOL && nextType != EOF) {
+                node = statement();
+            } else {
+                node = expression();
+            }
+
+            if (!isAtEndHidden()) {
+                if (!matchHidden(SEMICOLON)) {
+                    consumeHidden(EOL, "Expect ';' or newline.");
+                }
+            }
+        } catch (ParseError ex) {
+            synchronize();
+            return null;
+        }
+        return node;
     }
 
     public boolean hasErrors() {
@@ -52,38 +70,35 @@ final class Parser {
 
     //// grammar rules ////
 
-    private Ast replStatement() {
-        Ast stmt;
-        try {
-            var nextType = peekNextHidden().type();
-            if (check(IDENTIFIER) && nextType != SEMICOLON && nextType != EOL && nextType != EOF) {
-                stmt = statement();
-            } else {
-                stmt = expression();
-            }
-
-            if (!isAtEndHidden()) {
-                if (!matchHidden(SEMICOLON)) {
-                    consumeHidden(EOL, "Expect ';' or newline.");
-                }
-            }
-        } catch (ParseError ex) {
-            synchronize();
-            return null;
+    // source      :: statement* EOF
+    private Ast.Source source() {
+        var statements = new ArrayList<Ast.Stmt>();
+        while (!isAtEnd()) {
+            statements.add(statement());
         }
-        return stmt;
+        return new Ast.Source(statements);
     }
 
+
+    // statement   :: ( "@[ annotation ( EOL annotation )* EOL? "]" )? ID expression EOL
     private Ast.Stmt statement() {
         var type = advance();
         var value = expression();
         return new Ast.Stmt(type, value);
     }
 
+    // TODO
+    // annotation  :: ID ":" expression
+
+    // expression  :: lambda
     private Ast expression() {
         return or();
     }
 
+    // TODO
+    // lambda      :: ( ID ( "," ID )* "->" expression ) | or
+
+    // or          :: and ( "||" and )*
     private Ast or() {
         var expr = and();
 
@@ -96,6 +111,7 @@ final class Parser {
         return expr;
     }
 
+    // and         :: equality ( "&&" equality )*
     private Ast and() {
         var expr = equality();
 
@@ -108,6 +124,7 @@ final class Parser {
         return expr;
     }
 
+    // equality    :: comparison ( ( "==" | "!=" ) comparison )*
     private Ast equality() {
         var expr = comparison();
 
@@ -120,6 +137,7 @@ final class Parser {
         return expr;
     }
 
+    // comparison  :: term ( ( ">" | ">=" | "<" | "<=" ) term )*
     private Ast comparison() {
         var expr = term();
 
@@ -132,6 +150,7 @@ final class Parser {
         return expr;
     }
 
+    // term        :: factor ( ( "-" | "+" ) factor )*
     private Ast term() {
         var expr = factor();
 
@@ -144,6 +163,7 @@ final class Parser {
         return expr;
     }
 
+    // factor      :: unary ( ( "/" | "*" ) unary )*
     private Ast factor() {
         var expr = unary();
 
@@ -156,6 +176,7 @@ final class Parser {
         return expr;
     }
 
+    // unary       :: ( ( "!" | "-" | "+" ) unary ) | binding
     private Ast unary() {
         if (match(BANG, MINUS, PLUS, TILDE)) {
             var operator = previous();
@@ -165,6 +186,7 @@ final class Parser {
         return binding();
     }
 
+    // binding     :: call ( ":" expression )?
     private Ast binding() {
         var left = primary();
         if (check(COLON)) {
@@ -175,6 +197,13 @@ final class Parser {
         return left;
     }
 
+    // TODO
+    // call        :: primary ( "(" expression ( "," expression )* ")" )?
+
+    // primary     :: STRING | INTEGER | DECIMAL | TRUE | FALSE
+    //             | ( ID ( "{" builder "}" )? )
+    //             | "[]" | ( "[" sequence "]" )
+    //             | ( "(" expression ")" )
     private Ast primary() {
         if (match(FALSE)) {
             return new Ast.Literal(false, previous());
@@ -212,6 +241,7 @@ final class Parser {
         throw error(peek(), "Expect primary.");
     }
 
+    // builder     :: statement*
     private Ast builder() {
         var identifier = previous();
         advance(); // BRACE_LEFT
@@ -223,6 +253,7 @@ final class Parser {
         return new Ast.Builder(identifier, statements);
     }
 
+    // sequence    :: expression ( EOL expression )* EOL?
     private Ast sequence() {
         var elements = new ArrayList<Ast>();
 
