@@ -44,42 +44,61 @@ final class Parser {
 
     //// grammar rules ////
 
+    private Expr builder() {
+        var identifier = previous();
+        advance(); // BRACE_LEFT
+        var statements = new ArrayList<Stmt>();
+        while (!check(BRACE_RIGHT) && !isAtEnd()) {
+            statements.add(statement());
+        }
+        consume(BRACE_RIGHT, "Expect '}' after builder.");
+        return new Expr.Builder(identifier, statements);
+    }
+
+    private Expr sequence() {
+        var elements = new ArrayList<Expr>();
+
+        do {
+            elements.add(expression());
+        } while (matchHidden(EOL, SEMICOLON) && !check(BRACKET_RIGHT));
+
+        consume(BRACKET_RIGHT, "Expect ']' after tuple.");
+        return new Expr.Sequence(elements);
+    }
+
     private Expr primary() {
         if (match(FALSE)) {
-            return new Expr.Literal(false);
+            return new Expr.Literal(false, previous());
         }
         if (match(TRUE)) {
-            return new Expr.Literal(true);
+            return new Expr.Literal(true, previous());
         }
         if (match(STRING)) {
             var lexeme = previous().lexeme();
             var string = lexeme.substring(1, lexeme.length() - 1); // strip quotes
-            return new Expr.Literal(string);
+            return new Expr.Literal(string, previous());
         }
         if (match(DECIMAL)) {
             var value = new BigDecimal(previous().lexeme());
-            return new Expr.Literal(value);
+            return new Expr.Literal(value, previous());
         }
         if (match(INTEGER)) {
             var value = new BigInteger(previous().lexeme());
-            return new Expr.Literal(value);
+            return new Expr.Literal(value, previous());
         }
         if (match(IDENTIFIER)) {
-            var identifier = previous();
-            if (match(BRACE_LEFT)) {
-                var statements = new ArrayList<Stmt>();
-                while (!check(BRACE_RIGHT) && !isAtEnd()) {
-                    statements.add(statement());
-                }
-                consume(BRACE_RIGHT, "Expect '}' after block.");
-                return new Expr.Builder(identifier, statements);
+            if (check(BRACE_LEFT)) {
+                return builder();
             }
-            return new Expr.Variable(identifier);
+            return new Expr.Variable(previous());
         }
         if (match(PAREN_LEFT)) {
             var expr = expression();
             consume(PAREN_RIGHT, "Expect ')' after expression.");
             return new Expr.Grouping(expr);
+        }
+        if (match(BRACKET_LEFT)) {
+            return sequence();
         }
         throw error(peek(), "Expect expression.");
     }
@@ -175,48 +194,7 @@ final class Parser {
         return expr;
     }
 
-    private Expr sequence() {
-        var elements = new ArrayList<Expr>();
-
-        if (match(COLON)) { // empty table
-            consume(BRACKET_RIGHT, "Expect ']' after table.");
-            return new Expr.Table(List.of());
-        }
-
-        if (match(BRACKET_RIGHT)) { // empty sequence
-            return new Expr.Tuple(List.of());
-        }
-
-        Boolean isTable = null;
-        do {
-            var element = expression();
-            if (isTable == null) {
-                isTable = element instanceof Expr.Binding;
-            } else if (!isTable && element instanceof Expr.Binding) {
-                throw error(previous(), "Expect tuple element.");
-            } else if (isTable && !(element instanceof Expr.Binding)) {
-                throw error(previous(), "Expect table binding.");
-            }
-            elements.add(element);
-        } while (matchHidden(EOL, SEMICOLON) && !check(BRACKET_RIGHT));
-
-        if (isTable) {
-            consume(BRACKET_RIGHT, "Expect ']' after table.");
-            var pairs = new ArrayList<Expr.Binding>();
-            for (var element : elements) {
-                pairs.add((Expr.Binding) element);
-            }
-            return new Expr.Table(pairs);
-        }
-
-        consume(BRACKET_RIGHT, "Expect ']' after tuple.");
-        return new Expr.Tuple(elements);
-    }
-
     private Expr expression() {
-        if (match(BRACKET_LEFT)) {
-            return sequence();
-        }
         return or();
     }
 

@@ -14,8 +14,7 @@ import mackerel.lang.Expr.Binding;
 import mackerel.lang.Expr.Builder;
 import mackerel.lang.Expr.Grouping;
 import mackerel.lang.Expr.Logical;
-import mackerel.lang.Expr.Tuple;
-import mackerel.lang.Expr.Table;
+import mackerel.lang.Expr.Sequence;
 import mackerel.lang.Expr.Unary;
 import mackerel.lang.Expr.Variable;
 import mackerel.lang.Stmt.Declaration;
@@ -97,12 +96,8 @@ final class Interpreter {
             return evaluateLogicalExpr(logical);
         }
 
-        if (expr instanceof Expr.Tuple tuple) {
-            return evaluateTupleExpr(tuple);
-        }
-
-        if (expr instanceof Expr.Table table) {
-            return evaluateTableExpr(table);
+        if (expr instanceof Expr.Sequence seq) {
+            return evaluateSequenceExpr(seq);
         }
 
         if (expr instanceof Expr.Unary unary) {
@@ -114,6 +109,64 @@ final class Interpreter {
         }
 
         return "TODO: unsupported expression:\n  " + expr;
+    }
+
+    private List<Token> tokensOf(Stmt stmt) {
+        throw new IllegalArgumentException("unsupported statement: " + stmt);
+    }
+
+    private List<Token> tokensOf(Expr expr) {
+        var tokens = new ArrayList<Token>();
+
+        if (expr instanceof Expr.Binary binary) {
+            tokens.addAll(tokensOf(binary.left()));
+            tokens.add(binary.operator());
+            tokens.addAll(tokensOf(binary.right()));
+            return tokens;
+        }
+
+        if (expr instanceof Expr.Binding binding) {
+            tokens.addAll(tokensOf(binding.left()));
+            tokens.add(binding.operator());
+            tokens.addAll(tokensOf(binding.right()));
+            return tokens;
+        }
+
+        if (expr instanceof Expr.Builder builder) {
+            tokens.add(builder.type());
+            for (var stmt : builder.statements()) {
+                tokens.addAll(tokensOf(stmt));
+            }
+            return tokens;
+        }
+
+        if (expr instanceof Expr.Grouping grouping) {
+            tokens.addAll(tokensOf(grouping.expression()));
+            return tokens;
+        }
+
+        if (expr instanceof Expr.Literal literal) {
+            tokens.add(literal.token());
+            return tokens;
+        }
+
+        if (expr instanceof Expr.Logical logical) {
+            return tokens;
+        }
+
+        if (expr instanceof Expr.Sequence seq) {
+            return tokens;
+        }
+
+        if (expr instanceof Expr.Unary unary) {
+            return tokens;
+        }
+
+        if (expr instanceof Expr.Variable variable) {
+            return tokens;
+        }
+
+        throw new IllegalArgumentException("unsupported expression: " + expr);
     }
 
     private Object evaluateBinaryExpr(Binary expr) {
@@ -230,23 +283,42 @@ final class Interpreter {
         return (Boolean) right;
     }
 
-    private Object evaluateTupleExpr(Tuple sequence) {
+    private Object evaluateSequenceExpr(Sequence sequence) {
+        var elements = sequence.elements();
         var result = new ArrayList<Object>();
-        for (var element : sequence.elements()) {
+        if (elements.isEmpty()) {
+            return result;
+        }
+
+        if (elements.get(0) instanceof Expr.Binding) {
+            return evaluateTableExpr(sequence);
+        }
+
+        for (var element : elements) {
+            if (element instanceof Expr.Binding entry) {
+                throw new InterpreterError(entry.operator(), "expect sequence element");
+            }
             result.add(evaluate(element));
         }
         return result;
     }
 
-    private Object evaluateTableExpr(Table table) {
+    private Object evaluateTableExpr(Sequence sequence) {
         var result = new LinkedHashMap<Object, Object>();
-        for (var pair : table.pairs()) {
-            var key = evaluate(pair.left());
-            var value = evaluate(pair.right());
-            if (result.containsKey(key)) {
-                errors.add(new Message("Duplicate key in table: " + key, pair.operator()));
+        for (var elem : sequence.elements()) {
+            if (elem instanceof Expr.Binding pair) {
+                var key = (pair.left() instanceof Variable vt)
+                    ? vt.name().lexeme()
+                    : evaluate(pair.left());
+                var value = evaluate(pair.right());
+                if (result.containsKey(key)) {
+                    errors.add(new Message("Duplicate key in table: " + key, pair.operator()));
+                }
+                result.put(key, value);
+            } else {
+                var tokens = tokensOf(sequence);
+                throw new InterpreterError(tokens.get(0), "expect table entry");
             }
-            result.put(key, value);
         }
         return result;
     }

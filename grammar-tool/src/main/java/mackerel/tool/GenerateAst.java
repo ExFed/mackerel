@@ -33,10 +33,9 @@ public class GenerateAst {
             Binding    : Expr left, Token operator, Expr right
             Builder    : Token type, List>Stmt statements
             Grouping   : Expr expression
-            Literal    : Object value
+            Literal    : Object value, Token token
             Logical    : Expr left, Token operator, Expr right
-            Table      : List>Binding pairs
-            Tuple      : List>Expr elements
+            Sequence   : List>Expr elements
             Unary      : Token operator, Expr right
             Variable   : Token name
             """);
