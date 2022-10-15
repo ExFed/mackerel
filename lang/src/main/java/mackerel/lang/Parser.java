@@ -64,7 +64,7 @@ final class Parser {
 
             if (!isAtEndHidden()) {
                 if (!matchHidden(SEMICOLON)) {
-                    consumeHidden(EOL, "Expect ';' or newline after statement.");
+                    consumeHidden(EOL, "Expect ';' or newline.");
                 }
             }
         } catch (ParseError ex) {
@@ -209,7 +209,7 @@ final class Parser {
         if (match(BRACKET_LEFT)) {
             return sequence();
         }
-        throw error(peek(), "Expect expression.");
+        throw error(peek(), "Expect primary.");
     }
 
     private Ast builder() {
@@ -230,7 +230,7 @@ final class Parser {
             elements.add(expression());
         } while (matchHidden(EOL, SEMICOLON) && !check(BRACKET_RIGHT));
 
-        consume(BRACKET_RIGHT, "Expect ']' after tuple.");
+        consume(BRACKET_RIGHT, "Expect ']' after sequence.");
         return new Ast.Sequence(elements);
     }
 
