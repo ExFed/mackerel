@@ -11,7 +11,7 @@ record Token(
 
     @Override
     public String toString() {
-        return type + " " + lexeme + " " + line + ":" + column + (hidden ? " HIDDEN" : "") ;
+        return "(Token " + type + " " + lexeme + " " + line + ":" + column + (hidden ? " HIDDEN" : "") + ")" ;
     }
 
     enum Type {

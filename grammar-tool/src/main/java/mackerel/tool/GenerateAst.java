@@ -93,6 +93,15 @@ public class GenerateAst {
         var file = new File(pkgDir, baseName + ".java");
         file.getParentFile().mkdirs();
         try (var writer = new PrintWriter(file, StandardCharsets.UTF_8)) {
+            writer.println("""
+                /*
+                 * ********************************
+                 * **** GENERATOR-CRAFTED CODE ****
+                 * ********************************
+                 * ********* DO NOT EDIT! *********
+                 * ********************************
+                 */""".stripIndent());
+            writer.println();
             writer.println("package " + String.join(".", pkgTokens) + ";");
             writer.println();
             writeJava(writer, baseName, astDef);
@@ -137,14 +146,32 @@ public class GenerateAst {
         var fieldList = Arrays.stream(fields)
                 .map(f -> f.type + ' ' + f.name)
                 .collect(Collectors.joining(", "));
-        writer.println("  record " + className  + "(" + fieldList + ") implements " + baseName + " {");
 
-        // visitor pattern
-        writer.println();
-        writer.println("    public <R> R accept(Visitor<R> visitor) {");
-        writer.println("      return visitor.visit" + className + baseName + "(this);");
-        writer.println("    }");
+        var fieldAppenders = Arrays.stream(fields)
+                .map(f -> "s.append(' ').append(" + f.name + ");")
+                .collect(Collectors.joining("\n    "));
 
-        writer.println("  }");
+        var template = """
+            record ${className}(${fieldList}) implements ${baseName} {
+
+              public <R> R accept(Visitor<R> visitor) {
+                return visitor.visit${className}${baseName}(this);
+              }
+
+              public String toString() {
+                var s = new StringBuilder(\"(${baseName}.${className}\");
+                ${fieldAppenders}
+                return s.append(')').toString();
+              }
+            }
+            """.stripIndent();
+        var render = template
+            .replace("${className}", className)
+            .replace("${fieldList}", fieldList)
+            .replace("${fieldAppenders}", fieldAppenders)
+            .replace("${baseName}", baseName)
+            .indent(2);
+
+        writer.print(render);
     }
 }
