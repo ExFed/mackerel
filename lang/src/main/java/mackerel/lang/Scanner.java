@@ -227,6 +227,9 @@ final class Scanner {
             while (isDigit(peek())) {
                 advance();
             }
+
+            // TODO exponent
+
             addToken(DECIMAL);
         } else {
             addToken(INTEGER);

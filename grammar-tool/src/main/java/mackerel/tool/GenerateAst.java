@@ -38,6 +38,7 @@ public class GenerateAst {
             Sequence    : List>Ast elements
             Source      : List>Stmt statements
             Stmt        : Token type, Ast value
+            Repl        : List>Ast nodes
             Unary       : Token operator, Ast right
             Variable    : Token name
             """);

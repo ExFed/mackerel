@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 
 import lombok.Getter;
-import lombok.NonNull;
 import mackerel.lang.Ast.Binary;
 import mackerel.lang.Ast.Binding;
 import mackerel.lang.Ast.Builder;
@@ -29,7 +28,7 @@ final class Interpreter {
     @Getter
     private final List<Message> warnings = new ArrayList<>();
 
-    private final Map<String, Lazy<Object>> declarations = new LinkedHashMap<>();
+    private final Map<String, Object> declarations = new LinkedHashMap<>();
 
     public boolean hasErrors() {
         return !errors.isEmpty();
@@ -39,33 +38,55 @@ final class Interpreter {
         return !warnings.isEmpty();
     }
 
-    public void interpret(Ast.Source source) {
-        interpret(source.statements());
-    }
-
-    public void interpret(List<? extends Ast> astNodes) {
+    public void interpret(Ast parsed) {
         try {
-            for (var astNode : astNodes) {
-                if (astNode instanceof Ast.Stmt stmt) {
-                    executeStmt(stmt);
-                } else {
-                    System.out.println(evaluate(astNode));
-                }
+            if (parsed instanceof Ast.Source source) {
+                interpretSource(source);
+            } else if (parsed instanceof Ast.Repl repl) {
+                interpretRepl(repl);
+            } else {
+                var astClazz = parsed != null ? parsed.getClass() : null;
+                throw new IllegalArgumentException("unsupported syntax tree: " + astClazz);
             }
         } catch (InterpreterError ex) {
             errors.add(ex.asError());
         }
     }
 
-    private void executeStmt(Ast.Stmt decl) {
-        if ("decl".equals(decl.type().lexeme())) {
-            if (decl.value() instanceof Ast.Binding binding
-                    && binding.left() instanceof Ast.Variable key) {
-                var definition = binding.right();
-                declarations.put(key.name().lexeme(), Lazy.lazy(() -> evaluate(definition)));
+    private void interpretSource(Ast.Source source) {
+        for (var stmt : source.statements()) {
+            interpretTopStmt(stmt);
+        }
+    }
+
+    private void interpretRepl(Ast.Repl repl) {
+        for (var element : repl.nodes()) {
+            if (element instanceof Ast.Stmt stmt) {
+                interpretTopStmt(stmt);
             } else {
-                throw new InterpreterError(decl.type(), "Expect named binding.");
+                print(evaluate(element));
             }
+        }
+    }
+
+    private void interpretTopStmt(Ast.Stmt stmt) {
+        switch (stmt.type().lexeme()) {
+            case "decl":
+                interpretDecl(stmt);
+                break;
+            default:
+                throw new InterpreterError(stmt.type(), "unexpected statement");
+        }
+    }
+
+    private void interpretDecl(Ast.Stmt decl) {
+        if (decl.value() instanceof Ast.Binding binding
+                && binding.left() instanceof Ast.Variable key) {
+            var name = key.name().lexeme();
+            var definition = evaluate(binding.right());
+            declarations.put(name, definition);
+        } else {
+            throw new InterpreterError(decl.type(), "Expect named binding.");
         }
     }
 
@@ -350,7 +371,7 @@ final class Interpreter {
         if (!declarations.containsKey(key)) {
             throw new InterpreterError(variable.name(), "Cannot find variable: " + key);
         }
-        return declarations.get(key).get();
+        return declarations.get(key);
     }
 
     // **** UTILITIES ****
@@ -406,11 +427,15 @@ final class Interpreter {
         return a.equals(b);
     }
 
-    private String stringify(@NonNull Object obj) {
+    private String stringify(Object obj) {
         return obj.toString();
     }
 
-    private class InterpreterError extends RuntimeException {
+    private void print(Object value) {
+        System.out.println(value);
+    }
+
+    static class InterpreterError extends RuntimeException {
         private final Token token;
 
         InterpreterError(Token token, String message) {

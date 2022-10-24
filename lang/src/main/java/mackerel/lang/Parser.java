@@ -7,6 +7,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,11 @@ final class Parser {
 
     public static record Message(Token token, String message) {}
 
-    private static class ParseError extends RuntimeException {}
+    @AllArgsConstructor
+    @Getter
+    private static class ParseError extends RuntimeException {
+        private Message parserMessage;
+    }
 
     private final @NonNull TokenStream tokens;
 
@@ -30,34 +35,8 @@ final class Parser {
         return source();
     }
 
-    public List<Ast> replParse() {
-        var nodes = new ArrayList<Ast>();
-        while (!isAtEnd()) {
-            nodes.add(replParseNode());
-        }
-        return nodes;
-    }
-
-    private Ast replParseNode() {
-        Ast node;
-        try {
-            var nextType = peekNextHidden().type();
-            if (check(IDENTIFIER) && nextType != SEMICOLON && nextType != EOL && nextType != EOF) {
-                node = statement();
-            } else {
-                node = expression();
-            }
-
-            if (!isAtEndHidden()) {
-                if (!matchHidden(SEMICOLON)) {
-                    consumeHidden(EOL, "Expect ';' or newline.");
-                }
-            }
-        } catch (ParseError ex) {
-            synchronize();
-            return null;
-        }
-        return node;
+    public Ast.Repl parseRepl() {
+        return repl();
     }
 
     public boolean hasErrors() {
@@ -78,27 +57,72 @@ final class Parser {
     private Ast.Source source() {
         var statements = new ArrayList<Ast.Stmt>();
         while (!isAtEnd()) {
-            statements.add(statement());
+            try {
+                statements.add(statement());
+            } catch (ParseError ex) {
+                errors.add(ex.getParserMessage());
+                synchronize();
+            }
         }
         return new Ast.Source(statements);
     }
 
-
     /**
      * <pre>
-     * statement   :: ( "@[ annotation ( EOL annotation )* EOL? "]" )? ID expression EOL
+     *  statement   :: ( "@[ annotations "]" )? ID expression EOL
      * </pre>
      */
     private Ast.Stmt statement() {
-        var type = advance();
+        var type = consume(IDENTIFIER, "Expect statement type identifier.");
         var value = expression();
+        if (!isAtEndHidden() && !matchHidden(SEMICOLON)) {
+            consumeHidden(EOL, "Expect ';' or newline after statement.");
+        }
         return new Ast.Stmt(type, value);
+    }
+
+    /**
+     * <pre>
+     *  repl        :: ( ( "@[ annotations "]" )? ID )? expression EOL
+     * </pre>
+     */
+    private Ast.Repl repl() {
+        var nodes = new ArrayList<Ast>();
+        while (!isAtEnd()) {
+            try {
+                var nextType = peekNextHidden().type();
+                Ast node;
+                if (check(IDENTIFIER) && nextType != SEMICOLON && nextType != EOL && nextType != EOF) {
+                    node = statement();
+                } else {
+                    node = expression();
+                    if (!isAtEndHidden() && !matchHidden(SEMICOLON)) {
+                        consumeHidden(EOL, "Expect ';' or newline after expression.");
+                    }
+                }
+                nodes.add(node);
+            } catch (ParseError ex) {
+                errors.add(ex.getParserMessage());
+                synchronize();
+            }
+        }
+        return new Ast.Repl(nodes);
     }
 
     // TODO
     /**
      * <pre>
-     * annotation  :: ID ":" expression
+     *  annotations :: annotation ( EOL annotation )* EOL? "]"
+     * </pre>
+     */
+    private Ast annotations() {
+        throw new UnsupportedOperationException("todo");
+    }
+
+    // TODO
+    /**
+     * <pre>
+     *  annotation  :: ID ":" expression
      * </pre>
      */
     private Ast annotation() {
@@ -107,7 +131,7 @@ final class Parser {
 
     /**
      * <pre>
-     * expression  :: lambda
+     *  expression  :: lambda
      * </pre>
      */
     private Ast expression() {
@@ -117,7 +141,7 @@ final class Parser {
     // TODO
     /**
      * <pre>
-     * lambda      :: ( ID ( "," ID )* "->" expression ) | or
+     *  lambda      :: ( ID ( "," ID )* "->" expression ) | or
      * </pre>
      */
     private Ast lambda() {
@@ -126,7 +150,7 @@ final class Parser {
 
     /**
      * <pre>
-     * or          :: and ( "||" and )*
+     *  or          :: and ( "||" and )*
      * </pre>
      */
     private Ast or() {
@@ -143,7 +167,7 @@ final class Parser {
 
     /**
      * <pre>
-     * and         :: equality ( "&&" equality )*
+     *  and         :: equality ( "&&" equality )*
      * </pre>
      */
     private Ast and() {
@@ -160,7 +184,7 @@ final class Parser {
 
     /**
      * <pre>
-     * equality    :: comparison ( ( "==" | "!=" ) comparison )*
+     *  equality    :: comparison ( ( "==" | "!=" ) comparison )*
      * </pre>
      */
     private Ast equality() {
@@ -177,7 +201,7 @@ final class Parser {
 
     /**
      * <pre>
-     * comparison  :: term ( ( ">" | ">=" | "<" | "<=" ) term )*
+     *  comparison  :: term ( ( ">" | ">=" | "<" | "<=" ) term )*
      * </pre>
      */
     private Ast comparison() {
@@ -194,7 +218,7 @@ final class Parser {
 
     /**
      * <pre>
-     * term        :: factor ( ( "-" | "+" ) factor )*
+     *  term        :: factor ( ( "-" | "+" ) factor )*
      * </pre>
      */
     private Ast term() {
@@ -211,7 +235,7 @@ final class Parser {
 
     /**
      * <pre>
-     * factor      :: unary ( ( "/" | "*" ) unary )*
+     *  factor      :: unary ( ( "/" | "*" ) unary )*
      * </pre>
      */
     private Ast factor() {
@@ -228,7 +252,7 @@ final class Parser {
 
     /**
      * <pre>
-     * unary       :: ( ( "!" | "-" | "+" ) unary ) | binding
+     *  unary       :: ( ( "!" | "-" | "+" ) unary ) | binding
      * </pre>
      */
     private Ast unary() {
@@ -242,7 +266,7 @@ final class Parser {
 
     /**
      * <pre>
-     * binding     :: call ( ":" expression )?
+     *  binding     :: call ( ":" expression )?
      * </pre>
      */
     private Ast binding() {
@@ -258,7 +282,7 @@ final class Parser {
     // TODO
     /**
      * <pre>
-     * call        :: primary ( "(" expression ( "," expression )* ")" )?
+     * `call        :: primary ( "(" expression ( "," expression )* ")" )?
      * </pre>
      */
     private Ast call() {
@@ -267,10 +291,10 @@ final class Parser {
 
     /**
      * <pre>
-     * primary     :: STRING | INTEGER | DECIMAL | TRUE | FALSE
-     *             | ( ID ( "{" builder "}" )? )
-     *             | "[]" | ( "[" sequence "]" )
-     *             | ( "(" expression ")" )
+     *  primary     :: STRING | INTEGER | DECIMAL | TRUE | FALSE
+     *              | ( ID ( "{" builder "}" )? )
+     *              | "[]" | ( "[" sequence "]" )
+     *              | ( "(" expression ")" )
      * </pre>
      */
     private Ast primary() {
@@ -295,24 +319,28 @@ final class Parser {
         }
         if (match(IDENTIFIER)) {
             if (check(BRACE_LEFT)) {
-                return builder();
+                var builder = builder();
+                consume(BRACE_RIGHT, "Expect '}' after builder.");
+                return builder;
             }
             return new Ast.Variable(previous());
         }
         if (match(PAREN_LEFT)) {
-            var expr = expression();
+            var expression = expression();
             consume(PAREN_RIGHT, "Expect ')' after expression.");
-            return new Ast.Grouping(expr);
+            return new Ast.Grouping(expression);
         }
         if (match(BRACKET_LEFT)) {
-            return sequence();
+            var sequence = sequence();
+            consume(BRACKET_RIGHT, "Expect ']' after sequence.");
+            return sequence;
         }
         throw error(peek(), "Expect primary.");
     }
 
     /**
      * <pre>
-     * builder     :: statement*
+     *  builder     :: statement*
      * </pre>
      */
     private Ast builder() {
@@ -322,13 +350,12 @@ final class Parser {
         while (!check(BRACE_RIGHT) && !isAtEnd()) {
             statements.add(statement());
         }
-        consume(BRACE_RIGHT, "Expect '}' after builder.");
         return new Ast.Builder(identifier, statements);
     }
 
     /**
      * <pre>
-     * sequence    :: expression ( EOL expression )* EOL?
+     *  sequence    :: expression ( EOL expression )* EOL?
      * </pre>
      */
     private Ast sequence() {
@@ -336,9 +363,8 @@ final class Parser {
 
         do {
             elements.add(expression());
-        } while (matchHidden(EOL, SEMICOLON) && !check(BRACKET_RIGHT));
+        } while (matchHidden(EOL, COMMA) && !check(BRACKET_RIGHT));
 
-        consume(BRACKET_RIGHT, "Expect ']' after sequence.");
         return new Ast.Sequence(elements);
     }
 
@@ -361,8 +387,7 @@ final class Parser {
     }
 
     private ParseError error(Token token, String message) {
-        errors.add(new Message(token, message));
-        return new ParseError();
+        return new ParseError(new Message(token, message));
     }
 
     private void synchronize() {

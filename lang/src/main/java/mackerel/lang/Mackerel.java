@@ -103,10 +103,10 @@ public class Mackerel {
         }
 
         var parser = new Parser(new TokenStream(tokens));
-        var parsed = isRepl ? parser.replParse() : parser.parse().statements();
+        var parsed = isRepl ? parser.parseRepl() : parser.parse();
 
         if (flags.printAst) {
-            parsed.forEach(System.out::println);
+            System.out.println(parsed);
         }
 
         parser.getWarnings().forEach(Mackerel::report);
