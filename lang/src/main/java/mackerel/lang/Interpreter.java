@@ -7,6 +7,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import mackerel.lang.Ast.Binding;
 import mackerel.lang.Ast.Builder;
@@ -208,10 +210,10 @@ final class Interpreter {
 
     private Object evaluateVariableExpr(Variable variable) {
         var key = variable.name().lexeme();
-        if (!declarations.containsKey(key)) {
-            throw new InterpreterError(variable.name(), "Cannot find variable: " + key);
+        if (declarations.containsKey(key)) {
+            return new Ref(key);
         }
-        return declarations.get(key);
+        throw new InterpreterError(variable.name(), "Cannot find variable: " + key);
     }
 
     // **** UTILITIES ****
@@ -272,6 +274,9 @@ final class Interpreter {
     }
 
     private void print(Object value) {
+        if (value instanceof Ref ref) {
+            value = ref.get();
+        }
         System.out.println(value);
     }
 
@@ -285,6 +290,21 @@ final class Interpreter {
 
         public Message asError() {
             return new Message(getMessage(), token);
+        }
+    }
+
+    @AllArgsConstructor(access = AccessLevel.PRIVATE)
+    class Ref {
+
+        private final String identifier;
+
+        public Object get() {
+            return declarations.get(identifier);
+        }
+
+        @Override
+        public String toString() {
+            return identifier;
         }
     }
 }
