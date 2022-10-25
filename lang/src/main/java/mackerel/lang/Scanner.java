@@ -136,7 +136,7 @@ final class Scanner {
         default:
             if (c == '-' && match('>')) {
                 addToken(DASH_ARROW);
-            } else if (isDigit(c) || (isNumberStart(c) && isDigit(peek()))) {
+            } else if (isDigit(c) || (isPlusOrMinus(c) && isDigit(peek()))) {
                 number();
             } else if (isAlpha(c)) {
                 identifier();
@@ -160,8 +160,8 @@ final class Scanner {
         return c >= '0' && c <='9';
     }
 
-    private static boolean isNumberStart(char c) {
-        return c == '+' || c == '-' || c == '.';
+    private static boolean isPlusOrMinus(char c) {
+        return c == '+' || c == '-';
     }
 
     private void identifier() {
