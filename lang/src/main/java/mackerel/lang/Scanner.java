@@ -64,21 +64,21 @@ final class Scanner {
 
     private void scanToken() {
         var c = advance();
+
+        // comments
+        if (c == '/') {
+            if (match('/')) {
+                while (peek() != '\n' && !isAtEnd()) {
+                    advance();
+                }
+                return;
+            } else if (match('*')) {
+                blockComment();
+                return;
+            }
+        }
+
         switch (c) {
-        case '&':
-            if (match('&')) {
-                addToken(AMPERSAND_AMPERSAND);
-            } else {
-                addToken(AMPERSAND);
-            }
-            break;
-        case '|':
-            if (match('|')) {
-                addToken(PIPE_PIPE);
-            } else {
-                addToken(PIPE);
-            }
-            break;
         case '(':
             addToken(PAREN_LEFT);
             break;
@@ -100,55 +100,8 @@ final class Scanner {
         case ',':
             addToken(COMMA);
             break;
-        case '.':
-            addToken(DOT);
-            break;
-        case '-':
-            addToken(match('>') ? DASH_ARROW : MINUS);
-            break;
-        case '+':
-            addToken(PLUS);
-            break;
-        case '?':
-            addToken(QUESTION);
-            break;
         case ':':
             addToken(COLON);
-            break;
-        case '*':
-            addToken(STAR);
-            break;
-        case '!':
-            addToken(match('=') ? BANG_EQUAL : BANG);
-            break;
-        case '=':
-            if (match('>')) {
-                addToken(EQUAL_ARROW);
-            } else if (match('=')) {
-                addToken(EQUAL_EQUAL);
-            } else {
-                addToken(EQUAL);
-            }
-            break;
-        case '<':
-            addToken(match('=') ? LESS_EQUAL : LESS);
-            break;
-        case '>':
-            addToken(match('=') ? GREATER_EQUAL : GREATER);
-            break;
-        case '/':
-            if (match('/')) {
-                while (peek() != '\n' && !isAtEnd()) {
-                    advance();
-                }
-            } else if (match('*')) {
-                blockComment();
-            } else {
-                addToken(SLASH);
-            }
-            break;
-        case '~':
-            addToken(TILDE);
             break;
 
         // whitespace
@@ -181,8 +134,10 @@ final class Scanner {
             break;
 
         default:
-            if (isDigit(c)) {
-                integer();
+            if (c == '-' && match('>')) {
+                addToken(DASH_ARROW);
+            } else if (isDigit(c) || (isNumberStart(c) && isDigit(peek()))) {
+                number();
             } else if (isAlpha(c)) {
                 identifier();
             } else {
@@ -205,6 +160,10 @@ final class Scanner {
         return c >= '0' && c <='9';
     }
 
+    private static boolean isNumberStart(char c) {
+        return c == '+' || c == '-' || c == '.';
+    }
+
     private void identifier() {
         while (isAlphaNumeric(peek())) {
             advance();
@@ -214,7 +173,7 @@ final class Scanner {
         addToken(type);
     }
 
-    private void integer() {
+    private void number() {
         while (isDigit(peek())) {
             advance();
         }

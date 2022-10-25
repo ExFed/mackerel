@@ -16,10 +16,6 @@ record Token(
     }
 
     enum Type {
-        AMPERSAND_AMPERSAND,
-        AMPERSAND,
-        BANG_EQUAL,
-        BANG,
         BRACE_LEFT,
         BRACE_RIGHT,
         BRACKET_LEFT,
@@ -27,24 +23,8 @@ record Token(
         COLON,
         COMMA,
         DASH_ARROW,
-        DOT,
-        EQUAL_ARROW,
-        EQUAL_EQUAL,
-        EQUAL,
-        GREATER_EQUAL,
-        GREATER,
-        LESS_EQUAL,
-        LESS,
-        MINUS,
         PAREN_LEFT,
         PAREN_RIGHT,
-        PIPE_PIPE,
-        PIPE,
-        PLUS,
-        QUESTION,
-        SLASH,
-        STAR,
-        TILDE,
 
         // literals
         DECIMAL,

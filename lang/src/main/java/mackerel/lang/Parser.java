@@ -109,24 +109,22 @@ final class Parser {
         return new Ast.Repl(nodes);
     }
 
-    // TODO
     /**
      * <pre>
      *  annotations :: annotation ( EOL annotation )* EOL? "]"
      * </pre>
      */
     private Ast annotations() {
-        throw new UnsupportedOperationException("todo");
+        throw new UnsupportedOperationException("todo"); // TODO
     }
 
-    // TODO
     /**
      * <pre>
      *  annotation  :: ID ":" expression
      * </pre>
      */
     private Ast annotation() {
-        throw new UnsupportedOperationException("todo");
+        throw new UnsupportedOperationException("todo"); // TODO
     }
 
     /**
@@ -135,133 +133,16 @@ final class Parser {
      * </pre>
      */
     private Ast expression() {
-        return or();
+        return lambda();
     }
 
-    // TODO
     /**
      * <pre>
-     *  lambda      :: ( ID ( "," ID )* "->" expression ) | or
+     *  lambda      :: ( ID ( "," ID )* "->" expression ) | binding
      * </pre>
      */
     private Ast lambda() {
-        throw new UnsupportedOperationException("todo");
-    }
-
-    /**
-     * <pre>
-     *  or          :: and ( "||" and )*
-     * </pre>
-     */
-    private Ast or() {
-        var expr = and();
-
-        while (match(PIPE_PIPE)) {
-            var operator = previous();
-            var right = and();
-            expr = new Ast.Logical(expr, operator, right);
-        }
-
-        return expr;
-    }
-
-    /**
-     * <pre>
-     *  and         :: equality ( "&&" equality )*
-     * </pre>
-     */
-    private Ast and() {
-        var expr = equality();
-
-        while (match(AMPERSAND_AMPERSAND)) {
-            var operator = previous();
-            var right = equality();
-            expr = new Ast.Logical(expr, operator, right);
-        }
-
-        return expr;
-    }
-
-    /**
-     * <pre>
-     *  equality    :: comparison ( ( "==" | "!=" ) comparison )*
-     * </pre>
-     */
-    private Ast equality() {
-        var expr = comparison();
-
-        while (match(BANG_EQUAL, EQUAL_EQUAL)) {
-            var operator = previous();
-            var right = comparison();
-            expr = new Ast.Binary(expr, operator, right);
-        }
-
-        return expr;
-    }
-
-    /**
-     * <pre>
-     *  comparison  :: term ( ( ">" | ">=" | "<" | "<=" ) term )*
-     * </pre>
-     */
-    private Ast comparison() {
-        var expr = term();
-
-        while (match(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)) {
-            var operator = previous();
-            var right = term();
-            expr = new Ast.Binary(expr, operator, right);
-        }
-
-        return expr;
-    }
-
-    /**
-     * <pre>
-     *  term        :: factor ( ( "-" | "+" ) factor )*
-     * </pre>
-     */
-    private Ast term() {
-        var expr = factor();
-
-        while (match(MINUS, PLUS)) {
-            var operator = previous();
-            var right = factor();
-            expr = new Ast.Binary(expr, operator, right);
-        }
-
-        return expr;
-    }
-
-    /**
-     * <pre>
-     *  factor      :: unary ( ( "/" | "*" ) unary )*
-     * </pre>
-     */
-    private Ast factor() {
-        var expr = unary();
-
-        while (match(SLASH, STAR)) {
-            var operator = previous();
-            var right = unary();
-            expr = new Ast.Binary(expr, operator, right);
-        }
-
-        return expr;
-    }
-
-    /**
-     * <pre>
-     *  unary       :: ( ( "!" | "-" | "+" ) unary ) | binding
-     * </pre>
-     */
-    private Ast unary() {
-        if (match(BANG, MINUS, PLUS, TILDE)) {
-            var operator = previous();
-            var right = unary();
-            return new Ast.Unary(operator, right);
-        }
-        return binding();
+        return binding(); // TODO
     }
 
     /**
@@ -270,7 +151,7 @@ final class Parser {
      * </pre>
      */
     private Ast binding() {
-        var left = primary();
+        var left = call();
         if (check(COLON)) {
             var colon = advance();
             var right = expression();
@@ -279,14 +160,13 @@ final class Parser {
         return left;
     }
 
-    // TODO
     /**
      * <pre>
      * `call        :: primary ( "(" expression ( "," expression )* ")" )?
      * </pre>
      */
     private Ast call() {
-        throw new UnsupportedOperationException("todo");
+        return primary(); // TODO
     }
 
     /**

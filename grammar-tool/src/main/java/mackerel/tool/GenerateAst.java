@@ -29,17 +29,14 @@ public class GenerateAst {
             .forEach(File::delete);
 
         var ast = parseAstDef("""
-            Binary      : Ast left, Token operator, Ast right
             Binding     : Ast left, Token operator, Ast right
             Builder     : Token type, List>Stmt statements
             Grouping    : Ast expression
             Literal     : Object value, Token token
-            Logical     : Ast left, Token operator, Ast right
             Sequence    : List>Ast elements
             Source      : List>Stmt statements
             Stmt        : Token type, Ast value
             Repl        : List>Ast nodes
-            Unary       : Token operator, Ast right
             Variable    : Token name
             """);
         writeAstDef(outputDir, "mackerel.lang.Ast", ast);
