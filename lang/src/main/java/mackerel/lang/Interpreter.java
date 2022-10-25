@@ -145,10 +145,14 @@ final class Interpreter {
         }
 
         if (expr instanceof Ast.Sequence seq) {
+            for (var elem : seq.elements()) {
+                tokens.addAll(tokensOf(elem));
+            }
             return tokens;
         }
 
         if (expr instanceof Ast.Variable variable) {
+            tokens.add(variable.name());
             return tokens;
         }
 
@@ -201,7 +205,7 @@ final class Interpreter {
                 }
                 result.put(key, value);
             } else {
-                var tokens = tokensOf(sequence);
+                var tokens = tokensOf(elem);
                 throw new InterpreterError(tokens.get(0), "expect table entry");
             }
         }
